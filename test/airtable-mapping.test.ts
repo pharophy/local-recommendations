@@ -35,7 +35,7 @@ describe('experienceToAirtableFields', () => {
     };
 
     const fields = experienceToAirtableFields('Restaurants', experience);
-    expect(fields['Cuisine']).toBe('Fusion');
+    expect(fields['Cuisine / Style']).toBe('Fusion');
     expect(fields['Name']).toBe('The Starport');
   });
 });

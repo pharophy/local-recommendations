@@ -13,4 +13,8 @@ export interface HtmlSourceDefinition {
   descriptionSelector?: string;
   maxItems?: number;
   tags?: string[];
+  includeUrlPatterns?: string[];
+  excludeUrlPatterns?: string[];
+  excludeTitlePatterns?: string[];
+  allowNavigationLinks?: boolean;
 }

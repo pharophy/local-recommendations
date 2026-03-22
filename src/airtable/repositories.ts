@@ -10,7 +10,7 @@ import {
 import type { SearchMetadata } from '../domain/search-metadata.js';
 import { splitListField } from '../utils/strings.js';
 import type { AirtableClient } from './client.js';
-import { EXPERIENCE_TABLE_FIELDS, SEARCH_METADATA_FIELDS } from './schema.js';
+import { EXPERIENCE_TABLE_FIELDS } from './schema.js';
 
 export interface AirtableFields {
   [key: string]: unknown;
@@ -43,6 +43,28 @@ function categoryToMetadataTableName(category: ExperienceCategory): string {
   return category === 'SpecialEvents' ? 'Special Events' : category;
 }
 
+function getExistingFieldNames(category: ExperienceCategory): string[] {
+  if (category === 'Nature') {
+    return ['Name', 'City / Area', 'Region', 'Duplicate Key'];
+  }
+
+  return ['Name', 'City', 'Region', 'Duplicate Key'];
+}
+
+function getExistingFieldValue(
+  category: ExperienceCategory,
+  fields: AirtableFields,
+): ExistingExperienceRef {
+  const cityFieldName = category === 'Nature' ? 'City / Area' : 'City';
+
+  return {
+    duplicateKey: readString(fields['Duplicate Key']),
+    name: readString(fields['Name']),
+    city: readString(fields[cityFieldName]),
+    region: readString(fields['Region']),
+  };
+}
+
 export class SearchMetadataRepository {
   public constructor(
     private readonly client: AirtableClient,
@@ -50,12 +72,7 @@ export class SearchMetadataRepository {
   ) { }
 
   public async getMetadata(): Promise<SearchMetadata[]> {
-    const rows = await this.client.listRecords<AirtableFields>(
-      this.config.tableNames.SearchMetadata,
-      {
-        fields: [...SEARCH_METADATA_FIELDS],
-      },
-    );
+    const rows = await this.client.listRecords<AirtableFields>(this.config.tableNames.SearchMetadata);
 
     return rows
       .map((row) => parseSearchMetadataRecord(row.fields, this.config.defaultRegionPriority))
@@ -89,15 +106,10 @@ export class ExperienceRepository {
 
   public async getExisting(category: ExperienceCategory): Promise<ExistingExperienceRef[]> {
     const rows = await this.client.listRecords<AirtableFields>(this.config.tableNames[category], {
-      fields: ['Name', 'City', 'Region', 'DuplicateKey'],
+      fields: getExistingFieldNames(category),
     });
 
-    return rows.map((row) => ({
-      duplicateKey: readString(row.fields['DuplicateKey']),
-      name: readString(row.fields['Name']),
-      city: readString(row.fields['City']),
-      region: readString(row.fields['Region']),
-    }));
+    return rows.map((row) => getExistingFieldValue(category, row.fields));
   }
 
   public async insert(category: ExperienceCategory, experiences: ExperienceCandidate[]): Promise<void> {
@@ -128,7 +140,7 @@ export function parseSearchMetadataRecord(
         ? true
         : Boolean(readField(fields, 'Active', 'Enabled')),
     dailyTargetNewItems: Number(
-      readField(fields, 'DailyTargetNewItems') ?? DEFAULT_DAILY_TARGET,
+      readField(fields, 'Daily Target New Items', 'DailyTargetNewItems') ?? DEFAULT_DAILY_TARGET,
     ),
     searchFocus: splitListField(readField(fields, 'Search Focus', 'SearchFocus')),
     includeTerms: splitListField(readField(fields, 'Include Terms', 'IncludeTerms')),
@@ -193,63 +205,89 @@ export function experienceToAirtableFields(
     Name: experience.name,
     Region: experience.region,
     City: experience.city,
-    ShortDescription: experience.shortDescription,
     WhyUnique: experience.whyUnique,
     Themes: experience.themes.join(', '),
-    Audience: experience.audience.join(', '),
-    KidFriendly: experience.kidFriendly,
-    IndoorOutdoor: experience.indoorOutdoor,
-    PriceLevel: experience.priceLevel,
-    ReservationRecommended: experience.reservationRecommended,
+    'Price Tier': experience.priceLevel,
+    'Reservation Needed': experience.reservationRecommended,
     Website: experience.website,
-    SourceName: experience.sourceName,
-    SourceUrl: experience.sourceUrl,
-    CanonicalUrl: experience.canonicalUrl,
-    BotScore: experience.botScore,
-    LastVerifiedAt: experience.lastVerifiedAt,
-    DuplicateKey: experience.duplicateKey,
-    SearchFocusSnapshot: experience.searchFocusSnapshot,
-    DiscoveryNotes: experience.discoveryNotes,
+    'Source URL': experience.sourceUrl,
+    'Last Verified': experience.lastVerifiedAt,
+    'Duplicate Key': experience.duplicateKey,
     Status: experience.status,
-    MyRating: experience.myRating,
-    MyComments: experience.myComments,
-    Visited: experience.visited,
-    CreatedByBotAt: experience.createdByBotAt,
+    'Bot Score': experience.botScore,
+    'Bot Notes': experience.discoveryNotes,
+    'My Rating': experience.myRating,
+    'My Comments': experience.myComments,
+    'Discovery Date': experience.createdByBotAt,
   };
 
   if (category === 'Activities') {
     return {
       ...common,
-      NeighborhoodOrArea: experience.neighborhoodOrArea,
+      Subcategory: experience.neighborhoodOrArea,
+      'Venue / Operator': experience.venue,
+      'Kid Appeal': experience.kidFriendly,
+      'Age Notes': experience.audience.join(', '),
+      'Indoor / Outdoor': experience.indoorOutdoor,
+      'Best For': experience.searchFocusSnapshot,
+      Address: experience.canonicalUrl,
+      'Start Date': experience.startDate,
+      'End Date': experience.endDate,
+      'Hours / Availability': experience.shortDescription,
+      'Tried On': experience.visited,
     };
   }
 
   if (category === 'Restaurants') {
     return {
       ...common,
-      NeighborhoodOrArea: experience.neighborhoodOrArea,
-      Cuisine: experience.cuisine,
+      'Cuisine / Style': experience.cuisine,
+      'Venue / Operator': experience.venue,
+      'Kid Friendly': experience.kidFriendly,
+      'Age Notes': experience.audience.join(', '),
+      'Meal Type': experience.searchFocusSnapshot,
+      'Signature Experience': experience.shortDescription,
+      Address: experience.canonicalUrl,
+      'Start Date': experience.startDate,
+      'End Date': experience.endDate,
+      'Hours / Availability': experience.neighborhoodOrArea,
+      'Tried On': experience.visited,
     };
   }
 
   if (category === 'Nature') {
     return {
       ...common,
-      AreaType: experience.areaType,
+      'City / Area': experience.city,
+      'Nature Type': experience.areaType,
+      'Managing Agency': experience.venue,
       Features: experience.features?.join(', '),
       Difficulty: experience.difficulty,
-      OutdoorType: experience.outdoorType,
-      ParkingNotes: experience.parkingNotes,
-      FeeNotes: experience.feeNotes,
-      BestTime: experience.bestTime,
+      Distance: experience.outdoorType,
+      'Access / Elevation Notes': experience.shortDescription,
+      'Parking / Permit Notes': [experience.parkingNotes, experience.feeNotes]
+        .filter(Boolean)
+        .join(' | '),
+      'Best Time': experience.bestTime,
+      'Kid Appeal': experience.kidFriendly,
+      'Trailhead / Address': experience.canonicalUrl,
+      'Start Date': experience.startDate,
+      'End Date': experience.endDate,
+      'Tried On': experience.visited,
     };
   }
 
   return {
     ...common,
-    Venue: experience.venue,
-    StartDate: experience.startDate,
-    EndDate: experience.endDate,
+    'Event Type': experience.searchFocusSnapshot,
+    'Venue / Organizer': experience.venue,
+    'Kid Friendly': experience.kidFriendly,
+    'Age Notes': experience.audience.join(', '),
+    'Start Date': experience.startDate,
+    'End Date': experience.endDate,
+    'Event Times': experience.shortDescription,
+    Address: experience.canonicalUrl,
+    'Attended On': experience.visited,
   };
 }
 
