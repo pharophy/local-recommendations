@@ -204,11 +204,7 @@ export function experienceToAirtableFields(
   const common = {
     Name: experience.name,
     Region: experience.region,
-    City: experience.city,
-    WhyUnique: experience.whyUnique,
-    Themes: experience.themes.join(', '),
-    'Price Tier': experience.priceLevel,
-    'Reservation Needed': experience.reservationRecommended,
+    'Why Unique': experience.whyUnique,
     Website: experience.website,
     'Source URL': experience.sourceUrl,
     'Last Verified': experience.lastVerifiedAt,
@@ -224,6 +220,10 @@ export function experienceToAirtableFields(
   if (category === 'Activities') {
     return {
       ...common,
+      City: experience.city,
+      Themes: experience.themes.join(', '),
+      'Price Tier': experience.priceLevel,
+      'Reservation Needed': experience.reservationRecommended,
       Subcategory: experience.neighborhoodOrArea,
       'Venue / Operator': experience.venue,
       'Kid Appeal': experience.kidFriendly,
@@ -234,13 +234,16 @@ export function experienceToAirtableFields(
       'Start Date': experience.startDate,
       'End Date': experience.endDate,
       'Hours / Availability': experience.shortDescription,
-      'Tried On': experience.visited,
     };
   }
 
   if (category === 'Restaurants') {
     return {
       ...common,
+      City: experience.city,
+      Themes: experience.themes.join(', '),
+      'Price Tier': experience.priceLevel,
+      'Reservation Needed': experience.reservationRecommended,
       'Cuisine / Style': experience.cuisine,
       'Venue / Operator': experience.venue,
       'Kid Friendly': experience.kidFriendly,
@@ -251,7 +254,6 @@ export function experienceToAirtableFields(
       'Start Date': experience.startDate,
       'End Date': experience.endDate,
       'Hours / Availability': experience.neighborhoodOrArea,
-      'Tried On': experience.visited,
     };
   }
 
@@ -273,12 +275,15 @@ export function experienceToAirtableFields(
       'Trailhead / Address': experience.canonicalUrl,
       'Start Date': experience.startDate,
       'End Date': experience.endDate,
-      'Tried On': experience.visited,
     };
   }
 
   return {
     ...common,
+    City: experience.city,
+    Themes: experience.themes.join(', '),
+    'Price Tier': experience.priceLevel,
+    'Reservation Needed': experience.reservationRecommended,
     'Event Type': experience.searchFocusSnapshot,
     'Venue / Organizer': experience.venue,
     'Kid Friendly': experience.kidFriendly,
@@ -287,7 +292,6 @@ export function experienceToAirtableFields(
     'End Date': experience.endDate,
     'Event Times': experience.shortDescription,
     Address: experience.canonicalUrl,
-    'Attended On': experience.visited,
   };
 }
 

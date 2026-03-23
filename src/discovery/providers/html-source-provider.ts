@@ -54,6 +54,19 @@ function matchesConfiguredPatterns(
   return patterns.some((pattern) => value.includes(pattern));
 }
 
+function isAllowedCity(source: HtmlSourceDefinition, city: string | undefined): boolean {
+  if (!source.allowedCities || source.allowedCities.length === 0) {
+    return true;
+  }
+
+  if (!city) {
+    return false;
+  }
+
+  const normalized = city.toLowerCase();
+  return source.allowedCities.some((allowedCity) => normalized.includes(allowedCity.toLowerCase()));
+}
+
 export function shouldIgnoreLink(
   source: HtmlSourceDefinition,
   absoluteUrl: string,
@@ -67,7 +80,11 @@ export function shouldIgnoreLink(
   if (
     lowerUrl === source.url.toLowerCase() ||
     lowerUrl.startsWith(`${source.url.toLowerCase()}#`) ||
-    lowerUrl.startsWith('javascript:')
+    lowerUrl.startsWith('javascript:') ||
+    lowerUrl.includes('twitter.com/share') ||
+    lowerUrl.includes('facebook.com/sharer') ||
+    lowerUrl.includes('instagram.com') ||
+    lowerUrl.includes('pinterest.com')
   ) {
     return true;
   }
@@ -115,6 +132,38 @@ function buildContextSummary(
     .toLowerCase();
 }
 
+interface JsonLdThing {
+  '@type'?: string | string[];
+  '@graph'?: JsonLdThing[];
+  itemListElement?: Array<{
+    item?: {
+      url?: string;
+      name?: string;
+      description?: string;
+      servesCuisine?: string;
+      priceRange?: string;
+      address?: {
+        addressLocality?: string;
+      };
+    };
+  }>;
+}
+
+function extractItemLists(node: JsonLdThing): JsonLdThing[] {
+  const lists: JsonLdThing[] = [];
+  const type = Array.isArray(node['@type']) ? node['@type'] : [node['@type']];
+
+  if (type.includes('ItemList') && Array.isArray(node.itemListElement)) {
+    lists.push(node);
+  }
+
+  for (const child of node['@graph'] ?? []) {
+    lists.push(...extractItemLists(child));
+  }
+
+  return lists;
+}
+
 export class HtmlSourceProvider implements DiscoveryProvider {
   public constructor(
     private readonly sources: HtmlSourceDefinition[],
@@ -151,12 +200,20 @@ export class HtmlSourceProvider implements DiscoveryProvider {
         source.url,
         {
           headers: {
-            'user-agent': 'socal-discovery-agent/0.1 (+https://example.invalid)',
+            'user-agent': 'socal-discovery-agent/0.1',
           },
         },
-        this.httpOptions,
+        {
+          ...this.httpOptions,
+          retryCount: source.retryCount ?? this.httpOptions.retryCount,
+          timeoutMs: source.timeoutMs ?? this.httpOptions.timeoutMs,
+        },
       );
       const html = await response.text();
+      if (source.parser === 'jsonLdItemList') {
+        return this.discoverFromJsonLd(source, html);
+      }
+
       const $ = load(html);
       const selector = source.itemSelector ?? 'a';
       const records: RawDiscoveryRecord[] = [];
@@ -170,7 +227,11 @@ export class HtmlSourceProvider implements DiscoveryProvider {
         const wrapper = $(element);
         const linkElement = source.linkSelector ? wrapper.find(source.linkSelector).first() : wrapper;
         const href = linkElement.attr('href') ?? wrapper.attr('href');
-        const title = normalizeWhitespace(linkElement.text() || wrapper.text());
+        const title = normalizeWhitespace(
+          source.titleSelector
+            ? wrapper.find(source.titleSelector).first().text()
+            : linkElement.text() || wrapper.text(),
+        );
         const description = source.descriptionSelector
           ? normalizeWhitespace(wrapper.find(source.descriptionSelector).first().text())
           : normalizeWhitespace(wrapper.parent().text().replace(title, ''));
@@ -232,5 +293,75 @@ export class HtmlSourceProvider implements DiscoveryProvider {
       });
       return [];
     }
+  }
+
+  private discoverFromJsonLd(source: HtmlSourceDefinition, html: string): RawDiscoveryRecord[] {
+    const $ = load(html);
+    const records: RawDiscoveryRecord[] = [];
+    const seenUrls = new Set<string>();
+
+    $('script[type="application/ld+json"]').each((_, element) => {
+      const raw = $(element).html();
+      if (!raw) {
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(raw) as JsonLdThing;
+        for (const list of extractItemLists(parsed)) {
+          for (const entry of list.itemListElement ?? []) {
+            const item = entry.item;
+            if (!item?.url || !item.name) {
+              continue;
+            }
+
+            const absoluteUrl = new URL(item.url, source.url).toString();
+            if (
+              seenUrls.has(absoluteUrl) ||
+              shouldIgnoreLink(source, absoluteUrl, item.name, 'jsonld itemlist')
+            ) {
+              continue;
+            }
+
+            const record: RawDiscoveryRecord = {
+              category: source.category,
+              source: {
+                id: source.id,
+                name: source.name,
+                url: source.url,
+              },
+              title: normalizeWhitespace(item.name),
+              url: absoluteUrl,
+              summary: normalizeWhitespace(item.description ?? '').slice(0, 320),
+              region: source.region,
+              rawDateText: normalizeWhitespace(item.description ?? item.name),
+            };
+
+            const city = source.city ?? item.address?.addressLocality;
+            if (!isAllowedCity(source, city)) {
+              continue;
+            }
+
+            if (city) {
+              record.city = city;
+            }
+            if (source.tags) {
+              record.tags = source.tags;
+            }
+
+            seenUrls.add(absoluteUrl);
+            records.push(record);
+
+            if (records.length >= (source.maxItems ?? 15)) {
+              return false;
+            }
+          }
+        }
+      } catch {
+        return;
+      }
+    });
+
+    return records;
   }
 }

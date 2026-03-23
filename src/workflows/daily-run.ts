@@ -3,6 +3,7 @@ import pLimit from 'p-limit';
 import { AirtableClient } from '../airtable/client.js';
 import { ExperienceRepository, SearchMetadataRepository } from '../airtable/repositories.js';
 import type { RuntimeConfig } from '../config/runtime.js';
+import type { DiscoveryProvider } from '../discovery/provider.js';
 import { createDiscoveryProviders } from '../discovery/providers/index.js';
 import type { CategoryDiscoveryResult, DailyRunSummary } from '../domain/experience.js';
 import type { SearchMetadata } from '../domain/search-metadata.js';
@@ -53,14 +54,15 @@ export async function runDailyWorkflow(
   return summary;
 }
 
-async function processCategory(
+export async function processCategory(
   metadata: SearchMetadata,
-  providers: ReturnType<typeof createDiscoveryProviders>,
+  providers: DiscoveryProvider[],
   repository: ExperienceRepository,
   dryRun: boolean,
   logger: Logger,
 ): Promise<CategoryDiscoveryResult> {
   const warnings: string[] = [];
+  const categoryLogger = createWarningCapturingLogger(logger, warnings);
 
   try {
     const rawItems = (
@@ -68,7 +70,7 @@ async function processCategory(
         providers.map((provider) =>
           provider.discover({
             metadata,
-            logger,
+            logger: categoryLogger,
           }),
         ),
       )
@@ -118,4 +120,33 @@ async function processCategory(
       discoveredCount: 0,
     };
   }
+}
+
+function createWarningCapturingLogger(logger: Logger, warnings: string[]): Logger {
+  return {
+    ...logger,
+    warn(message, context = {}) {
+      warnings.push(formatWarning(message, context));
+      logger.warn(message, context);
+    },
+  };
+}
+
+function formatWarning(message: string, context: Record<string, unknown>): string {
+  const sourceId =
+    typeof context['sourceId'] === 'string' && context['sourceId'].length > 0
+      ? context['sourceId']
+      : null;
+  const error =
+    typeof context['error'] === 'string' && context['error'].length > 0 ? context['error'] : null;
+
+  if (sourceId && error) {
+    return `${message} [${sourceId}]: ${error}`;
+  }
+
+  if (error) {
+    return `${message}: ${error}`;
+  }
+
+  return message;
 }

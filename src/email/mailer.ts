@@ -4,6 +4,21 @@ import type { AppEnv } from '../config/env.js';
 import type { Logger } from '../utils/logger.js';
 import type { RenderedEmail } from './summary.js';
 
+export function buildSmtpOptions(env: AppEnv) {
+  const secure = env.SMTP_PORT === 465 ? env.SMTP_SECURE : false;
+
+  return {
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure,
+    requireTLS: env.SMTP_PORT !== 465,
+    auth: {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+  };
+}
+
 export async function sendEmail(
   env: AppEnv,
   email: RenderedEmail,
@@ -18,15 +33,7 @@ export async function sendEmail(
     return;
   }
 
-  const transport = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    secure: env.SMTP_SECURE,
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
-    },
-  });
+  const transport = nodemailer.createTransport(buildSmtpOptions(env));
 
   await transport.sendMail({
     from: env.EMAIL_FROM,

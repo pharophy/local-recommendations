@@ -123,7 +123,7 @@ SearchMetadata is the control plane for discovery. Fields:
 Behavior:
 
 - The bot reads SearchMetadata before discovery begins.
-- `SearchFocus`, `IncludeTerms`, and `ExcludeTerms` influence ranking and filtering.
+- `SearchFocus`, `IncludeTerms`, `ExcludeTerms`, `AudienceBias`, `KidFocus`, `IndoorOutdoorBias`, `PriceBias`, `RegionPriority`, `DateWindowDays`, and `SourcePriorityNotes` influence discovery, ranking, or filtering.
 - `RegionPriority` defaults to `Orange County, Los Angeles, Temecula, San Diego`.
 - `SpecialEvents` default to a 30-day lookahead window.
 - `DailyTargetNewItems` defaults to 5.
@@ -144,9 +144,10 @@ Tables:
 
 Each experience table includes human feedback fields:
 
-- `MyRating`
-- `MyComments`
-- `Visited`
+- `My Rating`
+- `My Comments`
+- `Tried On` for Activities, Restaurants, and Nature
+- `Attended On` for Special Events
 
 ## Manual Airtable Setup
 

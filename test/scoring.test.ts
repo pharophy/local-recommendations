@@ -41,4 +41,70 @@ describe('scoreCandidate', () => {
 
     expect(score).toBeGreaterThan(15);
   });
+
+  it('applies indoor, price, and source priority metadata boosts', () => {
+    const metadata = buildDefaultSearchMetadata('Restaurants', {
+      indoorOutdoorBias: 'Outdoor',
+      priceBias: '$',
+      sourcePriorityNotes: 'visit anaheim, opentable',
+    });
+
+    const preferred = scoreCandidate(
+      {
+        category: 'Restaurants',
+        name: 'Patio Tacos',
+        region: 'Orange County',
+        city: 'Anaheim',
+        shortDescription: 'Outdoor taco stand with a lively patio and family-friendly seating.',
+        whyUnique: 'A casual patio-first taco stop.',
+        themes: ['patio dining'],
+        audience: [],
+        kidFriendly: true,
+        indoorOutdoor: 'Outdoor',
+        priceLevel: '$',
+        reservationRecommended: false,
+        website: 'https://example.com/patio-tacos',
+        sourceName: 'Visit Anaheim',
+        sourceUrl: 'https://www.visitanaheim.org/restaurants/patio-tacos',
+        canonicalUrl: 'https://example.com/patio-tacos',
+        lastVerifiedAt: new Date().toISOString(),
+        searchFocusSnapshot: '',
+        discoveryNotes: '',
+        status: 'New',
+        createdByBotAt: new Date().toISOString(),
+        visited: false,
+      },
+      metadata,
+    );
+
+    const nonPreferred = scoreCandidate(
+      {
+        category: 'Restaurants',
+        name: 'Formal Dining Room',
+        region: 'Orange County',
+        city: 'Anaheim',
+        shortDescription: 'An indoor prix fixe restaurant with a luxury tasting menu.',
+        whyUnique: 'A formal fine-dining room.',
+        themes: ['fine dining'],
+        audience: [],
+        kidFriendly: false,
+        indoorOutdoor: 'Indoor',
+        priceLevel: '$$$$',
+        reservationRecommended: true,
+        website: 'https://example.com/formal-dining',
+        sourceName: 'Generic News',
+        sourceUrl: 'https://example.com/news/formal-dining',
+        canonicalUrl: 'https://example.com/formal-dining',
+        lastVerifiedAt: new Date().toISOString(),
+        searchFocusSnapshot: '',
+        discoveryNotes: '',
+        status: 'New',
+        createdByBotAt: new Date().toISOString(),
+        visited: false,
+      },
+      metadata,
+    );
+
+    expect(preferred).toBeGreaterThan(nonPreferred);
+  });
 });

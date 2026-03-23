@@ -6,15 +6,20 @@ export interface HtmlSourceDefinition {
   category: ExperienceCategory;
   url: string;
   region: string;
+  parser?: 'html' | 'jsonLdItemList';
   city?: string;
   venue?: string;
   itemSelector?: string;
   linkSelector?: string;
+  titleSelector?: string;
   descriptionSelector?: string;
   maxItems?: number;
+  timeoutMs?: number;
+  retryCount?: number;
   tags?: string[];
   includeUrlPatterns?: string[];
   excludeUrlPatterns?: string[];
   excludeTitlePatterns?: string[];
+  allowedCities?: string[];
   allowNavigationLinks?: boolean;
 }

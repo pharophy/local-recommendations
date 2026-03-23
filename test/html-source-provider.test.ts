@@ -14,6 +14,16 @@ const baseSource: HtmlSourceDefinition = {
   excludeTitlePatterns: ['featured'],
 };
 
+const ocSource: HtmlSourceDefinition = {
+  id: 'opentable-oc-restaurants',
+  name: 'OpenTable Orange County Restaurants',
+  category: 'Restaurants',
+  url: 'https://www.opentable.com/metro/orange-county-restaurants',
+  region: 'Orange County',
+  includeUrlPatterns: ['/r/'],
+  allowedCities: ['Anaheim', 'Costa Mesa'],
+};
+
 describe('shouldIgnoreLink', () => {
   it('rejects menu and utility links', () => {
     expect(
@@ -46,5 +56,27 @@ describe('shouldIgnoreLink', () => {
         'content tile card',
       ),
     ).toBe(false);
+  });
+
+  it('keeps OpenTable result links while city filtering happens later', () => {
+    expect(
+      shouldIgnoreLink(
+        ocSource,
+        'https://www.opentable.com/r/vaca',
+        'VACA',
+        'jsonld itemlist',
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects social share links', () => {
+    expect(
+      shouldIgnoreLink(
+        baseSource,
+        'https://twitter.com/share?url=https://example.com',
+        'Tweet',
+        'content tile card',
+      ),
+    ).toBe(true);
   });
 });

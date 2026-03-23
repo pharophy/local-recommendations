@@ -19,6 +19,51 @@ export function parseLooseDate(value: string | undefined): Date | null {
     }
   }
 
+  const dayRangeBeforeMonthMatch = value.match(
+    /\b(\d{1,2})\s*-\s*\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\b/i,
+  );
+  if (dayRangeBeforeMonthMatch) {
+    const day = dayRangeBeforeMonthMatch[1];
+    const month = dayRangeBeforeMonthMatch[2];
+    if (day && month) {
+      const parsed = parseDayMonth(day, month);
+      if (parsed) {
+        return parsed;
+      }
+    }
+  }
+
+  const dayMonthRangeMatch = value.match(
+    /\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)(?:\s*-\s*\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec))?\b/i,
+  );
+  if (dayMonthRangeMatch) {
+    const day = dayMonthRangeMatch[1];
+    const month = dayMonthRangeMatch[2];
+    if (day && month) {
+      const parsed = parseDayMonth(day, month);
+      if (parsed) {
+        return parsed;
+      }
+    }
+  }
+
+  const monthDayRangeMatch = value.match(
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{1,2}\s*-\s*\d{1,2}\b/i,
+  )?.[0];
+  if (monthDayRangeMatch) {
+    const firstPart = monthDayRangeMatch.match(
+      /(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{1,2}/i,
+    )?.[0];
+    if (firstPart) {
+      for (const format of ['MMMM d', 'MMM d']) {
+        const parsed = parse(firstPart, format, new Date());
+        if (isValid(parsed)) {
+          return parsed;
+        }
+      }
+    }
+  }
+
   const regex = /(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{1,2}(?:,\s+\d{4})?/i;
   const match = value.match(regex)?.[0];
   if (!match) {
@@ -33,6 +78,17 @@ export function parseLooseDate(value: string | undefined): Date | null {
   }
 
   return null;
+}
+
+function parseDayMonth(day: string, month: string): Date | null {
+  const baseYear = new Date().getFullYear();
+  const candidate = parse(`${day} ${month} ${baseYear}`, 'd MMM yyyy', new Date());
+  if (isValid(candidate)) {
+    return candidate;
+  }
+
+  const withLongMonth = parse(`${day} ${month} ${baseYear}`, 'd MMMM yyyy', new Date());
+  return isValid(withLongMonth) ? withLongMonth : null;
 }
 
 export function isDateWithinDays(value: string | undefined, days: number, now = new Date()): boolean {

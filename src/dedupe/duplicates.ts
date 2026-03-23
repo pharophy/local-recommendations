@@ -50,14 +50,23 @@ export function partitionDuplicates(
 } {
   const unique: ExperienceCandidate[] = [];
   const duplicates: ExperienceCandidate[] = [];
+  const seenDuplicateKeys = new Set(
+    existing.map((row) => row.duplicateKey).filter((value): value is string => value.length > 0),
+  );
+  const seenNameCity = new Set(
+    existing.map((row) => `${normalizeText(row.name)}::${normalizeText(row.city)}`),
+  );
 
   for (const candidate of candidates) {
-    const duplicate = existing.some(
-      (row) => row.duplicateKey === candidate.duplicateKey || isObviousDuplicate(candidate, row),
-    );
+    const nameCityKey = `${normalizeText(candidate.name)}::${normalizeText(candidate.city)}`;
+    const duplicate =
+      seenDuplicateKeys.has(candidate.duplicateKey) || seenNameCity.has(nameCityKey);
+
     if (duplicate) {
       duplicates.push(candidate);
     } else {
+      seenDuplicateKeys.add(candidate.duplicateKey);
+      seenNameCity.add(nameCityKey);
       unique.push(candidate);
     }
   }

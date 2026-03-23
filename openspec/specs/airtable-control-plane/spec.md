@@ -20,7 +20,7 @@ The system SHALL define each table's field list in code, expose schema documenta
 
 #### Scenario: Human feedback fields are preserved
 - **WHEN** the system inserts a new record
-- **THEN** the record includes writable human fields such as `MyRating`, `MyComments`, and `Visited` without overwriting them later
+- **THEN** the record includes writable human fields such as `My Rating`, `My Comments`, and visit-date fields like `Tried On` or `Attended On` without overwriting them later
 
 ### Requirement: Airtable writes are bounded and category-specific
 The system SHALL write at most the configured number of new records per category per daily run and SHALL only insert records into the corresponding Airtable table.
