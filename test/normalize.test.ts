@@ -137,4 +137,42 @@ describe('normalizeCandidate', () => {
     expect(candidate.whyUnique).toContain('a standout dessert-driven concept');
     expect(candidate.whyUnique).toContain('an immersive concept');
   });
+
+  it('derives stronger restaurant-facing fields from evidence instead of fallback metadata', () => {
+    const metadata = buildDefaultSearchMetadata('Restaurants', {
+      searchFocus: ['themed dining'],
+      includeTerms: ['rooftop views'],
+      priceBias: '$$',
+    });
+
+    const candidate = normalizeCandidate(
+      {
+        category: 'Restaurants',
+        source: {
+          id: 'trust',
+          name: 'Brave Web Search',
+          url: 'https://api.search.brave.com/res/v1/web/search',
+        },
+        title: 'TRUST',
+        url: 'https://trustdtsa.com/',
+        summary:
+          'Share chef-inspired tapas and small plates with sommelier pairings in an intimate 18-seat culinary theater at TRUST, one of Santa Ana’s most exclusive restaurants.',
+        region: 'Orange County',
+        city: 'Santa Ana',
+        provenance: 'search',
+        tags: ['search-derived', 'editorial-mention', 'trustdtsa.com'],
+      },
+      metadata,
+      new Date('2026-03-22T00:00:00.000Z'),
+    );
+
+    expect(candidate.cuisine).toBe('Small Plates');
+    expect(candidate.themes).toEqual(expect.arrayContaining(['chef-driven tasting', 'cocktail-forward']));
+    expect(candidate.priceLevel).toBe('$$$');
+    expect(candidate.searchFocusSnapshot).toBe('Dinner, Drinks');
+    expect(candidate.discoveryNotes).toContain('because the page shows');
+    expect(candidate.discoveryNotes).toContain('chef-led tasting format');
+    expect(candidate.website).toBe('https://trustdtsa.com/');
+    expect(candidate.canonicalUrl).toBe('https://trustdtsa.com/');
+  });
 });

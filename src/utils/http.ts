@@ -1,6 +1,16 @@
+import type { RequestMetrics } from '../domain/experience.js';
+
 export interface HttpClientOptions {
   timeoutMs: number;
   retryCount: number;
+  metrics?: RequestMetrics | undefined;
+  requestCounterKey?:
+    | 'braveSearchRequests'
+    | 'googleSearchRequests'
+    | 'searchPageFetchRequests'
+    | 'curatedPageFetchRequests'
+    | 'airtableRequests'
+    | undefined;
 }
 
 export async function fetchWithRetry(
@@ -11,6 +21,12 @@ export async function fetchWithRetry(
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= options.retryCount; attempt += 1) {
+    if (options.metrics && options.requestCounterKey) {
+      options.metrics[options.requestCounterKey] += 1;
+      if (attempt > 0) {
+        options.metrics.httpRetries += 1;
+      }
+    }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), options.timeoutMs);
 

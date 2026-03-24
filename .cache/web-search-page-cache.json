@@ -3,7 +3,7 @@
   "entries": [
     {
       "url": "https://la.eater.com/maps/best-essential-restaurants-orange-county-california",
-      "contentHash": "734e3eabf10b20b18ff46412357242105232113829c9cfcedcec9fd8f1b76ac1",
+      "contentHash": "ed1ed2e23020d8651c24a242ced746a1f2a5a3e19df24da5cf2d007cc37bbab8",
       "mentions": [
         {
           "name": "Cynthia Rebolledo",
@@ -31,26 +31,32 @@
           "url": "https://instagram.com/overoverunder"
         }
       ],
-      "updatedAt": "2026-03-24T01:30:10.735Z",
-      "etag": "\"a7wv6nqcnsy0z6\""
+      "updatedAt": "2026-03-24T03:39:25.197Z",
+      "etag": "\"91ps6sn88vy0z6\""
+    },
+    {
+      "url": "https://localemagazine.com/guide-breakfast-youll-need-orange-county/",
+      "mentions": [],
+      "updatedAt": "2026-03-24T02:09:19.280Z",
+      "fetchFailedAt": "2026-03-24T02:09:19.280Z"
     },
     {
       "url": "https://ocfoodies.com/",
-      "contentHash": "280ba742490834f265283fafc660ee2b60b5a7cafdf4b46f5a367c876b965bca",
       "mentions": [],
       "updatedAt": "2026-03-24T01:10:08.312Z",
+      "contentHash": "280ba742490834f265283fafc660ee2b60b5a7cafdf4b46f5a367c876b965bca",
       "etag": "30e9cb114cde34b00879de2ceae1cb0b"
     },
     {
       "url": "https://ocfoodies.com/f/ultimate-orange-county-brunch-guide-2025",
-      "contentHash": "8357f0e3cf3442d48fc11f75f2eb84bdc5a4185ac8548e145bddd04674ea49b9",
       "mentions": [],
-      "updatedAt": "2026-03-24T01:31:51.139Z",
+      "updatedAt": "2026-03-24T02:09:17.868Z",
+      "contentHash": "8357f0e3cf3442d48fc11f75f2eb84bdc5a4185ac8548e145bddd04674ea49b9",
       "etag": "30e9cb114cde34b00879de2ceae1cb0b"
     },
     {
       "url": "https://orangecoast.com/ocdining/food-trends-exploring-orange-countys-hidden-foodie-gems/",
-      "contentHash": "d47b2f4c0ce7765cb448153ea79ebcdf2f7a87e005df5ec9b27057f042203825",
+      "contentHash": "34e93cd72313920af2c64d6050faf8b842900830b2d9eb5f17a11af66cf546d2",
       "mentions": [
         {
           "name": "Bacchus Bar",
@@ -68,11 +74,11 @@
           "city": "Huntington Beach"
         }
       ],
-      "updatedAt": "2026-03-24T01:31:51.333Z"
+      "updatedAt": "2026-03-24T03:39:25.482Z"
     },
     {
       "url": "https://orangecoast.com/ocdining/the-dining-guide-october-2024/",
-      "contentHash": "56744d921995d8a4337aa741812e10e939148b63ab1018c8fa2d24229306e0ff",
+      "contentHash": "94c78fe6a456a329065adde7684f871e57a37fe0ee595a6dd5dab8cbeba7f56d",
       "mentions": [
         {
           "name": "ANAHEIM WHITE HOUSE",
@@ -97,11 +103,11 @@
           "city": "Brea"
         }
       ],
-      "updatedAt": "2026-03-24T01:31:51.883Z"
+      "updatedAt": "2026-03-24T03:39:26.170Z"
     },
     {
       "url": "https://rfp.visitanaheim.org/best-group-dining/",
-      "contentHash": "57ac3f9d98db0c0864d820ddb427a9fe090d80f3f4619ff642bbfca21ead25a1",
+      "contentHash": "8683d3c91e207d3f6f15d99e6f09f669fd328fc562a9bb9e9ae774dad51ebd26",
       "mentions": [
         {
           "name": "Anaheim Packing House",
@@ -109,17 +115,26 @@
           "city": "Anaheim"
         }
       ],
-      "updatedAt": "2026-03-24T01:31:50.821Z"
+      "updatedAt": "2026-03-24T03:39:25.076Z"
     },
     {
       "url": "https://wanderlog.com/list/geoCategory/222412/nice-restaurants-and-fine-dining-in-orange-county",
-      "contentHash": "e987095bff6e11d7f4825c36bb063b726610c011bd39bbce0bcd4699f5fd41b2",
-      "mentions": [],
-      "updatedAt": "2026-03-24T01:11:36.623Z"
+      "mentions": [
+        {
+          "name": "Taco Mar",
+          "summary": "Orange County is a culinary treasure trove, where the sun-kissed coastline meets a vibrant dining scene that caters to every palate. From upscale steakhouses to innovative Asian fusion spots, this region is brimming with restaurants that promise not just a meal, but an experience. Imagine savoring a perfectly cooked steak at Selanne Steak Tavern or indulging in the delicate flavors of a four-course menu at Taco María, where each dish is a celebration of fresh, seasonal ingredients. Whether you're in the mood for a romantic dinner with ocean views or a lively night out with friends, Orange County has something to satisfy your cravings.",
+          "city": "Orange"
+        },
+        {
+          "name": "RANCH Restaurant",
+          "summary": "3THE RANCH Restaurant"
+        }
+      ],
+      "updatedAt": "2026-03-24T01:51:53.880Z",
+      "contentHash": "3638e6e05a32cd40098ca91a0e9c66f6f7a1a44b27fcac736d039cabd904783a"
     },
     {
       "url": "https://www.mastrosrestaurants.com/location/mastros-steakhouse-costa-mesa/",
-      "contentHash": "12e8e6c4b44cb959b999b5cf5a7273b557655f0c56bd6ad529645c91ad0ed67b",
       "mentions": [
         {
           "name": "Order Online",
@@ -147,11 +162,12 @@
           "url": "https://postmates.com/merchant/mastros-steakhouse-costa-mesa"
         }
       ],
-      "updatedAt": "2026-03-24T01:11:36.138Z"
+      "updatedAt": "2026-03-24T01:11:36.138Z",
+      "contentHash": "12e8e6c4b44cb959b999b5cf5a7273b557655f0c56bd6ad529645c91ad0ed67b"
     },
     {
       "url": "https://www.mylocaloc.com/blog/orange-county-brunch-spots/",
-      "contentHash": "a6707fb00aacb796d0e1e7e81ae90c0e24bf5da578f76e1c66911a35914020de",
+      "contentHash": "c3ff9ec64a0738b1dfab0df8e7b9b4ac8b827e162fe7e8566a3f0036ef9cadaa",
       "mentions": [
         {
           "name": "Ladera Ranch",
@@ -174,11 +190,11 @@
           "summary": "Seal Beach The Hangout Restaurant & Beach Bar 901 Ocean Ave. 562.431.4888 Website"
         }
       ],
-      "updatedAt": "2026-03-24T01:31:50.961Z"
+      "updatedAt": "2026-03-24T03:39:25.352Z"
     },
     {
       "url": "https://www.ocregister.com/2025/10/15/orange-countys-9-most-distinctive-and-unique-restaurants/",
-      "contentHash": "e68a98a7225da94ef85af4fa56421561916f98850bb27294cb0fbdefcfd672b9",
+      "contentHash": "dd73f4a8c13d68d8cc57965b2e1cc347b9a512d5d177007c5a95d48864389771",
       "mentions": [
         {
           "name": "Trinity Audio",
@@ -206,61 +222,61 @@
           "city": "Orange"
         }
       ],
-      "updatedAt": "2026-03-24T01:31:50.936Z"
+      "updatedAt": "2026-03-24T03:39:25.097Z"
     },
     {
       "url": "https://www.reddit.com/r/orangecounty/comments/184sz9i/whats_the_restaurant_you_consider_a_hidden_gem/",
-      "contentHash": "f31afc2394aa0354b1ec82cce676859db4a1d1abc17c85916a8db0f958718cd2",
+      "contentHash": "baeaa0e05ec79c530d90763e25ebdd25da6c900a83c205dfe0297a6dba2ce4c5",
       "mentions": [],
-      "updatedAt": "2026-03-24T01:31:51.092Z"
+      "updatedAt": "2026-03-24T03:39:25.246Z"
     },
     {
       "url": "https://www.reddit.com/r/orangecounty/comments/1d1k5w4/specialunique_dining_experiences_in_oc/",
-      "contentHash": "27446442d5c707a62eda1f5c56886e6e05142b76b4d1fb1366a42589330955f9",
       "mentions": [],
-      "updatedAt": "2026-03-24T01:11:36.429Z"
+      "updatedAt": "2026-03-24T01:11:36.429Z",
+      "contentHash": "27446442d5c707a62eda1f5c56886e6e05142b76b4d1fb1366a42589330955f9"
     },
     {
       "url": "https://www.reddit.com/r/orangecounty/comments/1d80ubm/classic_old_school_eateries/",
-      "contentHash": "6fd7d0f9c28f152debd52a9aef35c7f9377b4a3e15effe769fc033a358629ea6",
       "mentions": [],
-      "updatedAt": "2026-03-24T01:02:23.279Z"
+      "updatedAt": "2026-03-24T01:02:23.279Z",
+      "contentHash": "6fd7d0f9c28f152debd52a9aef35c7f9377b4a3e15effe769fc033a358629ea6"
     },
     {
       "url": "https://www.reddit.com/r/orangecounty/comments/1d979ls/best_fine_dining_in_oc/",
-      "contentHash": "afff788b686791684b765e860f4e3effbf0520b5ee0357ecbf91732f74ffd638",
       "mentions": [],
-      "updatedAt": "2026-03-24T01:11:36.386Z"
+      "updatedAt": "2026-03-24T01:11:36.386Z",
+      "contentHash": "afff788b686791684b765e860f4e3effbf0520b5ee0357ecbf91732f74ffd638"
     },
     {
       "url": "https://www.reddit.com/r/orangecounty/comments/1eq2ilx/must_try_food_in_oc/",
-      "contentHash": "68eca32ebdb8cf22357e3d224aa21168d6428a218de1eff60b91ee7bceb30c30",
       "mentions": [],
-      "updatedAt": "2026-03-24T01:11:36.214Z"
+      "updatedAt": "2026-03-24T01:11:36.214Z",
+      "contentHash": "68eca32ebdb8cf22357e3d224aa21168d6428a218de1eff60b91ee7bceb30c30"
     },
     {
       "url": "https://www.reddit.com/r/orangecounty/comments/1hf5mo9/fancy_restaurant_recommendations_in_oc/",
-      "contentHash": "6be4badb7edf1a2488044d573f52ab2c354b474ccf94733d5136f2d0bee3739d",
       "mentions": [],
-      "updatedAt": "2026-03-24T01:11:36.348Z"
+      "updatedAt": "2026-03-24T01:11:36.348Z",
+      "contentHash": "6be4badb7edf1a2488044d573f52ab2c354b474ccf94733d5136f2d0bee3739d"
     },
     {
       "url": "https://www.reddit.com/r/orangecounty/comments/1lnr8u7/restaurants_that_will_accommodate_for_a_part_of/",
-      "contentHash": "35248ae75b30238f9aa1dadc5a782c74fdb63be8a766ed6aa971c925702e2380",
       "mentions": [],
-      "updatedAt": "2026-03-24T01:02:23.003Z"
+      "updatedAt": "2026-03-24T01:02:23.003Z",
+      "contentHash": "35248ae75b30238f9aa1dadc5a782c74fdb63be8a766ed6aa971c925702e2380"
     },
     {
       "url": "https://www.reddit.com/r/orangecounty/comments/1owc472/whats_the_best_hidden_gem_restaurant_in_orange/",
-      "contentHash": "dfb47ee50a2740951b227c10c4dedd4912768f7fa9eb6bf059f1846b73e50fa3",
+      "contentHash": "5a88c653a56611537556697671e04430d50bfed2bd7ccaf1e6c2845ace3858f7",
       "mentions": [],
-      "updatedAt": "2026-03-24T01:31:51.046Z"
+      "updatedAt": "2026-03-24T03:39:25.287Z"
     },
     {
       "url": "https://www.reddit.com/r/orangecounty/comments/ylhn8e/suggestions_for_restaurants_good_for_group_dining/",
-      "contentHash": "471cc6b10b43a70dce3b301bfeb67f02939b04c187acfa187da1d65d8d26dcad",
       "mentions": [],
-      "updatedAt": "2026-03-24T01:11:35.990Z"
+      "updatedAt": "2026-03-24T01:11:35.990Z",
+      "contentHash": "471cc6b10b43a70dce3b301bfeb67f02939b04c187acfa187da1d65d8d26dcad"
     },
     {
       "url": "https://www.visitanaheim.org/luxury/eat-drink/fine-dining/oc-fine-dining/",
@@ -284,17 +300,124 @@
           "city": "Anaheim"
         },
         {
-          "name": "Omakase",
+          "name": "Mastro",
           "summary": "With Anaheim as your luxury basecamp, you’re within effortless reach of the stars of Orange County’s competitive fine-dining food scene. Culinary adventures run the gamut, from the five-element Asian-fusion culinary experience at NOVA Kitchen & Bar and the intricate omakase for ten foodies at Omakase by Gino to formal private dining at Mastro’s Room within Mastro’s Steakhouse, the famed Champagne Brunch Sunday with breathtaking harbor views at Bayside and the experiential Italian tasting menu at BELLO Chef’s Table by Sandro Nardone.",
           "city": "Anaheim"
         },
         {
-          "name": "Mastro",
+          "name": "Bayside",
           "summary": "With Anaheim as your luxury basecamp, you’re within effortless reach of the stars of Orange County’s competitive fine-dining food scene. Culinary adventures run the gamut, from the five-element Asian-fusion culinary experience at NOVA Kitchen & Bar and the intricate omakase for ten foodies at Omakase by Gino to formal private dining at Mastro’s Room within Mastro’s Steakhouse, the famed Champagne Brunch Sunday with breathtaking harbor views at Bayside and the experiential Italian tasting menu at BELLO Chef’s Table by Sandro Nardone.",
           "city": "Anaheim"
         }
       ],
-      "updatedAt": "2026-03-24T01:31:50.912Z"
+      "updatedAt": "2026-03-24T03:39:25.053Z"
+    }
+  ],
+  "canonicalEntries": [
+    {
+      "key": "anaheim packing house::anaheim",
+      "url": "https://www.anaheimpackingdistrict.com/merchants",
+      "updatedAt": "2026-03-24T02:09:19.008Z"
+    },
+    {
+      "key": "anaheim white house::anaheim",
+      "url": "https://anaheimwhitehouse.com/",
+      "updatedAt": "2026-03-24T02:09:18.907Z"
+    },
+    {
+      "key": "bacchus bar::irvine",
+      "url": "https://www.bacchusbarandbistro.com/",
+      "updatedAt": "2026-03-24T02:09:19.405Z"
+    },
+    {
+      "key": "baran mediterranean restaurant & bar::unknown",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:18.804Z"
+    },
+    {
+      "key": "bayside::anaheim",
+      "url": "https://www.houseofblues.com/anaheim/EventDetail?tmeventid=vvG10Zpi5v9wMN&offerid=0",
+      "updatedAt": "2026-03-24T02:09:18.953Z"
+    },
+    {
+      "key": "crystal cove shake shack::orange",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:18.988Z"
+    },
+    {
+      "key": "gema::san clemente",
+      "url": "https://www.gemarestaurant.com/",
+      "updatedAt": "2026-03-24T03:39:26.084Z"
+    },
+    {
+      "key": "kim hong egg rolls::orange",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:19.342Z"
+    },
+    {
+      "key": "ladera ranch::unknown",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:19.785Z"
+    },
+    {
+      "key": "lake forest::unknown",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:19.805Z"
+    },
+    {
+      "key": "local restaurant::unknown",
+      "url": "https://us.trip.com/restaurant/orange-county-1656731/restaurants-e1/",
+      "updatedAt": "2026-03-24T02:09:19.725Z"
+    },
+    {
+      "key": "los alamitos::unknown",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:19.815Z"
+    },
+    {
+      "key": "macallans public house::unknown",
+      "url": "http://www.macallanspubbrea.com/",
+      "updatedAt": "2026-03-24T02:09:18.918Z"
+    },
+    {
+      "key": "mastro::anaheim",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:18.992Z"
+    },
+    {
+      "key": "mission viejo::unknown",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:19.810Z"
+    },
+    {
+      "key": "nova kitchen::anaheim",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:18.931Z"
+    },
+    {
+      "key": "old brea chop house::brea",
+      "url": "https://www.oldbreachophouse.com/",
+      "updatedAt": "2026-03-24T02:09:19.007Z"
+    },
+    {
+      "key": "pacific city::huntington beach",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:19.423Z"
+    },
+    {
+      "key": "seal beach::unknown",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:19.780Z"
+    },
+    {
+      "key": "strong water::orange",
+      "url": null,
+      "updatedAt": "2026-03-24T02:09:19.682Z"
+    },
+    {
+      "key": "true seasons organic kitchen::unknown",
+      "url": "https://trueseasonskitchen.com/about",
+      "updatedAt": "2026-03-24T02:09:18.840Z"
     }
   ]
 }

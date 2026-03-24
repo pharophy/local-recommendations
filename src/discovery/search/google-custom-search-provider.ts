@@ -9,6 +9,7 @@ import type { CandidateEnricher, DiscoveryContext, DiscoveryProvider, Enrichment
 import { buildDiscoveryQueries, buildEnrichmentQueries } from './query-builder.js';
 import {
   buildDiscoveryRecordsFromSeed,
+  scoreRestaurantCanonicalizationPriority,
   dedupeByUrl,
   extractDomain,
   isAcceptedCanonicalRestaurantResult,
@@ -16,7 +17,7 @@ import {
   isAcceptedEnrichmentResult,
   shouldCanonicalizeRestaurantRecord,
 } from './search-discovery-helpers.js';
-import { createDisabledSearchPageCache, type SearchPageCache } from './search-page-cache.js';
+import { createDisabledSearchPageCache, type CachedCanonicalRestaurantEntry, type SearchPageCache } from './search-page-cache.js';
 
 const GOOGLE_CUSTOM_SEARCH_ENDPOINT = 'https://customsearch.googleapis.com/customsearch/v1';
 const GOOGLE_SOURCE_NAME = 'Google Custom Search';
@@ -136,11 +137,12 @@ export class GoogleCustomSearchProvider implements DiscoveryProvider, CandidateE
           this.httpOptions,
           context.logger,
           this.searchPageCache,
+          context.metrics,
         ),
       ),
     );
 
-    return this.canonicalizeRestaurantRecords(records.flat(), context);
+    return this.canonicalizeRestaurantRecords(records.flat(), context, metadata);
   }
 
   private async search(
@@ -157,7 +159,7 @@ export class GoogleCustomSearchProvider implements DiscoveryProvider, CandidateE
             Accept: 'application/json',
           },
         },
-        this.httpOptions,
+        { ...this.httpOptions, metrics: context.metrics, requestCounterKey: 'googleSearchRequests' },
       );
       const json = (await response.json()) as GoogleCustomSearchResponse;
       if (!response.ok) {
@@ -181,10 +183,17 @@ export class GoogleCustomSearchProvider implements DiscoveryProvider, CandidateE
   private async canonicalizeRestaurantRecords(
     records: RawDiscoveryRecord[],
     context: DiscoveryContext,
+    metadata: SearchMetadata,
   ): Promise<RawDiscoveryRecord[]> {
+    const canonicalizationBudget = Math.max(metadata.dailyTargetNewItems * 2, 4);
+    const prioritized = records
+      .filter((record) => shouldCanonicalizeRestaurantRecord(record))
+      .sort((left, right) => scoreRestaurantCanonicalizationPriority(right) - scoreRestaurantCanonicalizationPriority(left))
+      .slice(0, canonicalizationBudget);
+    const prioritizedUrls = new Set(prioritized.map((record) => record.url));
     const updated = await Promise.all(
       records.map(async (record) => {
-        if (!shouldCanonicalizeRestaurantRecord(record)) {
+        if (!prioritizedUrls.has(record.url)) {
           return record;
         }
 
@@ -212,19 +221,40 @@ export class GoogleCustomSearchProvider implements DiscoveryProvider, CandidateE
     record: RawDiscoveryRecord,
     context: DiscoveryContext,
   ): Promise<GoogleCustomSearchItem | undefined> {
-    for (const query of buildCanonicalRestaurantQueries(record)) {
-      const results = await this.search(query, 3, context);
-      const match = results.find((result) =>
-        isAcceptedCanonicalRestaurantResult(
-          result.link ?? '',
-          result.title ?? '',
-          normalizeWhitespace(stripHtml(result.snippet ?? result.htmlSnippet ?? '')),
-          record.title,
-        ),
-      );
-      if (match) {
-        return match;
+    const cacheKey = buildCanonicalRestaurantCacheKey(record);
+    const cached = await this.searchPageCache.getCanonical(cacheKey);
+    if (isFreshCanonicalCacheEntry(cached)) {
+      if (context.metrics) {
+        context.metrics.canonicalCacheHits += 1;
       }
+      if (!cached?.url) {
+        return undefined;
+      }
+      return {
+        title: record.title,
+        link: cached.url,
+      };
+    }
+
+    const query = buildCanonicalRestaurantQueries(record)[0] ?? '';
+    const results = await this.search(query, 3, context);
+    const match = results.find((result) =>
+      isAcceptedCanonicalRestaurantResult(
+        result.link ?? '',
+        result.title ?? '',
+        normalizeWhitespace(stripHtml(result.snippet ?? result.htmlSnippet ?? '')),
+        record.title,
+      ),
+    );
+
+    await this.searchPageCache.setCanonical({
+      key: cacheKey,
+      url: match?.link ?? null,
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (match) {
+      return match;
     }
 
     return undefined;
@@ -287,7 +317,23 @@ function buildCanonicalRestaurantQueries(record: RawDiscoveryRecord): string[] {
   const location = record.city ?? record.region ?? 'Orange County';
   return [
     `"${record.title}" "${location}" restaurant official site`,
-    `"${record.title}" "${location}" menu`,
-    `"${record.title}" "${location}" dining`,
   ];
+}
+
+function buildCanonicalRestaurantCacheKey(record: RawDiscoveryRecord): string {
+  return `${record.title.trim().toLowerCase()}::${(record.city ?? record.region ?? 'unknown').trim().toLowerCase()}`;
+}
+
+function isFreshCanonicalCacheEntry(entry: CachedCanonicalRestaurantEntry | null): boolean {
+  if (!entry) {
+    return false;
+  }
+
+  const updatedAt = Date.parse(entry.updatedAt);
+  if (Number.isNaN(updatedAt)) {
+    return false;
+  }
+
+  const cacheWindowMs = 7 * 24 * 60 * 60 * 1000;
+  return Date.now() - updatedAt < cacheWindowMs;
 }

@@ -5,7 +5,13 @@ import { ExperienceRepository, SearchMetadataRepository } from '../airtable/repo
 import type { RuntimeConfig } from '../config/runtime.js';
 import type { CandidateEnricher, DiscoveryProvider } from '../discovery/provider.js';
 import { createDiscoveryProviders } from '../discovery/providers/index.js';
-import type { CategoryDiscoveryResult, DailyRunSummary, ExperienceCandidate } from '../domain/experience.js';
+import {
+  addRequestMetrics,
+  createEmptyRequestMetrics,
+  type CategoryDiscoveryResult,
+  type DailyRunSummary,
+  type ExperienceCandidate,
+} from '../domain/experience.js';
 import type { SearchMetadata } from '../domain/search-metadata.js';
 import { applyDuplicateKeys, partitionDuplicates } from '../dedupe/duplicates.js';
 import { sendEmail } from '../email/mailer.js';
@@ -21,13 +27,14 @@ export async function runDailyWorkflow(
   logger: Logger,
   dryRun: boolean,
 ): Promise<DailyRunSummary> {
-  const client = new AirtableClient(config.env.AIRTABLE_PAT, config.env.AIRTABLE_BASE_ID, {
+  const workflowMetrics = createEmptyRequestMetrics();
+  const meteredClient = new AirtableClient(config.env.AIRTABLE_PAT, config.env.AIRTABLE_BASE_ID, {
     timeoutMs: config.env.HTTP_TIMEOUT_MS,
     retryCount: config.env.HTTP_RETRY_COUNT,
-  });
-  const metadataRepository = new SearchMetadataRepository(client, config);
-  const experienceRepository = new ExperienceRepository(client, config);
-  const discoveryServices = createDiscoveryProviders(config);
+  }, workflowMetrics);
+  const metadataRepository = new SearchMetadataRepository(meteredClient, config);
+  const experienceRepository = new ExperienceRepository(meteredClient, config);
+  const discoveryServices = createDiscoveryProviders(config, workflowMetrics);
   const startedAt = new Date().toISOString();
   const warnings: string[] = [];
   const metadataRows = await metadataRepository.getMetadata();
@@ -54,15 +61,17 @@ export async function runDailyWorkflow(
     warnings.push(...result.warnings);
   }
 
+  const requestMetrics = addRequestMetrics(workflowMetrics, ...results.map((result) => result.requestMetrics));
   const summary: DailyRunSummary = {
     startedAt,
     finishedAt: new Date().toISOString(),
     dryRun,
     results,
     warnings,
+    requestMetrics,
   };
 
-  await sendEmail(config.env, renderDailySummaryEmail(summary), dryRun, logger);
+  await sendEmail(config.env, renderDailySummaryEmail(summary), dryRun, logger, workflowMetrics);
   return summary;
 }
 
@@ -77,6 +86,7 @@ export async function processCategory(
 ): Promise<CategoryDiscoveryResult> {
   const warnings: string[] = [];
   const categoryLogger = createWarningCapturingLogger(logger, warnings);
+  const requestMetrics = createEmptyRequestMetrics();
 
   try {
     const rawItems = (
@@ -85,6 +95,7 @@ export async function processCategory(
           provider.discover({
             metadata,
             logger: categoryLogger,
+            metrics: requestMetrics,
           }),
         ),
       )
@@ -93,7 +104,7 @@ export async function processCategory(
     const normalized = rawItems
       .map((raw) => normalizeCandidate(raw, metadata))
       .filter((candidate) => validateSearchDerivedCandidate(candidate, metadata));
-    const enriched = await enrichCandidates(normalized, enrichers, metadata, categoryLogger, config);
+    const enriched = await enrichCandidates(normalized, enrichers, metadata, categoryLogger, config, requestMetrics);
     const scored = applyDuplicateKeys(filterAndScoreCandidates(enriched, metadata));
     const existing = await repository.getExisting(metadata.tableName);
     const { unique, duplicates } = partitionDuplicates(scored, existing);
@@ -111,6 +122,7 @@ export async function processCategory(
       duplicates: duplicates.length,
       rejected: rejected.length,
       dryRun,
+      requestMetrics,
     });
 
     return {
@@ -120,6 +132,7 @@ export async function processCategory(
       rejected,
       warnings,
       discoveredCount: rawItems.length,
+      requestMetrics,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -135,6 +148,7 @@ export async function processCategory(
       rejected: [],
       warnings,
       discoveredCount: 0,
+      requestMetrics,
     };
   }
 }
@@ -181,6 +195,7 @@ async function enrichCandidates(
   metadata: SearchMetadata,
   logger: Logger,
   config: RuntimeConfig,
+  requestMetrics: ReturnType<typeof createEmptyRequestMetrics>,
 ): Promise<Array<Omit<ExperienceCandidate, 'botScore' | 'duplicateKey'>>> {
   if (enrichers.length === 0) {
     return candidates;
@@ -196,7 +211,7 @@ async function enrichCandidates(
 
         let current = candidate;
         for (const enricher of enrichers) {
-          const enrichment = await enricher.enrich(current, { metadata, logger });
+          const enrichment = await enricher.enrich(current, { metadata, logger, metrics: requestMetrics });
           if (!enrichment) {
             continue;
           }

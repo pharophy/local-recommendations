@@ -1,5 +1,6 @@
 import type { HttpClientOptions } from '../utils/http.js';
 import { fetchWithRetry } from '../utils/http.js';
+import type { RequestMetrics } from '../domain/experience.js';
 
 interface AirtableListResponse<TFields> {
   records: Array<{ id: string; fields: TFields }>;
@@ -13,6 +14,7 @@ export class AirtableClient {
     private readonly personalAccessToken: string,
     private readonly baseId: string,
     private readonly httpOptions: HttpClientOptions,
+    private readonly metrics?: RequestMetrics,
   ) {
     this.baseUrl = `https://api.airtable.com/v0/${this.baseId}`;
   }
@@ -48,7 +50,7 @@ export class AirtableClient {
         {
           headers: this.headers(),
         },
-        this.httpOptions,
+        { ...this.httpOptions, metrics: this.metrics, requestCounterKey: 'airtableRequests' },
       );
 
       if (!response.ok) {
@@ -81,12 +83,40 @@ export class AirtableClient {
           typecast: true,
         }),
       },
-      this.httpOptions,
+      { ...this.httpOptions, metrics: this.metrics, requestCounterKey: 'airtableRequests' },
     );
 
     if (!response.ok) {
       const body = await response.text();
       throw new Error(`Airtable create failed with status ${response.status}: ${body}`);
+    }
+  }
+
+  public async deleteRecords(
+    tableName: string,
+    recordIds: string[],
+  ): Promise<void> {
+    if (recordIds.length === 0) {
+      return;
+    }
+
+    const url = new URL(`${this.baseUrl}/${encodeURIComponent(tableName)}`);
+    for (const recordId of recordIds) {
+      url.searchParams.append('records[]', recordId);
+    }
+
+    const response = await fetchWithRetry(
+      url,
+      {
+        method: 'DELETE',
+        headers: this.headers(),
+      },
+      { ...this.httpOptions, metrics: this.metrics, requestCounterKey: 'airtableRequests' },
+    );
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Airtable delete failed with status ${response.status}: ${body}`);
     }
   }
 

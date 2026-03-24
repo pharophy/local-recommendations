@@ -11,21 +11,31 @@ export interface CachedRestaurantMention {
 
 export interface SearchPageCacheEntry {
   url: string;
-  contentHash: string;
+  contentHash?: string;
   mentions: CachedRestaurantMention[];
   updatedAt: string;
   etag?: string;
   lastModified?: string;
+  fetchFailedAt?: string;
+}
+
+export interface CachedCanonicalRestaurantEntry {
+  key: string;
+  url: string | null;
+  updatedAt: string;
 }
 
 interface SearchPageCacheFile {
   version: 1;
   entries: SearchPageCacheEntry[];
+  canonicalEntries?: CachedCanonicalRestaurantEntry[];
 }
 
 export interface SearchPageCache {
   get(url: string): Promise<SearchPageCacheEntry | null>;
   set(entry: SearchPageCacheEntry): Promise<void>;
+  getCanonical(key: string): Promise<CachedCanonicalRestaurantEntry | null>;
+  setCanonical(entry: CachedCanonicalRestaurantEntry): Promise<void>;
 }
 
 export function createContentHash(value: string): string {
@@ -40,6 +50,12 @@ export function createDisabledSearchPageCache(): SearchPageCache {
     async set() {
       return undefined;
     },
+    async getCanonical() {
+      return null;
+    },
+    async setCanonical() {
+      return undefined;
+    },
   };
 }
 
@@ -52,12 +68,19 @@ export function createFileSearchPageCache(filePath: string): SearchPageCache {
     set(entry) {
       return state.set(entry);
     },
+    getCanonical(key) {
+      return state.getCanonical(key);
+    },
+    setCanonical(entry) {
+      return state.setCanonical(entry);
+    },
   };
 }
 
 class FileSearchPageCache {
   private loaded = false;
   private entries = new Map<string, SearchPageCacheEntry>();
+  private canonicalEntries = new Map<string, CachedCanonicalRestaurantEntry>();
 
   public constructor(private readonly filePath: string) {}
 
@@ -72,6 +95,17 @@ class FileSearchPageCache {
     await this.persist();
   }
 
+  public async getCanonical(key: string): Promise<CachedCanonicalRestaurantEntry | null> {
+    await this.load();
+    return this.canonicalEntries.get(key) ?? null;
+  }
+
+  public async setCanonical(entry: CachedCanonicalRestaurantEntry): Promise<void> {
+    await this.load();
+    this.canonicalEntries.set(entry.key, entry);
+    await this.persist();
+  }
+
   private async load(): Promise<void> {
     if (this.loaded) {
       return;
@@ -82,22 +116,37 @@ class FileSearchPageCache {
       const raw = await readFile(this.filePath, 'utf8');
       const parsed = JSON.parse(raw) as Partial<SearchPageCacheFile>;
       for (const entry of parsed.entries ?? []) {
-        if (!entry?.url || !entry.contentHash || !Array.isArray(entry.mentions)) {
+        if (!entry?.url || !Array.isArray(entry.mentions)) {
           continue;
         }
         const hydrated: SearchPageCacheEntry = {
           url: entry.url,
-          contentHash: entry.contentHash,
           mentions: entry.mentions,
           updatedAt: entry.updatedAt ?? new Date(0).toISOString(),
         };
+        if (typeof entry.contentHash === 'string' && entry.contentHash.length > 0) {
+          hydrated.contentHash = entry.contentHash;
+        }
         if (typeof entry.etag === 'string') {
           hydrated.etag = entry.etag;
         }
         if (typeof entry.lastModified === 'string') {
           hydrated.lastModified = entry.lastModified;
         }
+        if (typeof entry.fetchFailedAt === 'string') {
+          hydrated.fetchFailedAt = entry.fetchFailedAt;
+        }
         this.entries.set(entry.url, hydrated);
+      }
+      for (const entry of parsed.canonicalEntries ?? []) {
+        if (!entry?.key || typeof entry.updatedAt !== 'string') {
+          continue;
+        }
+        this.canonicalEntries.set(entry.key, {
+          key: entry.key,
+          url: typeof entry.url === 'string' ? entry.url : null,
+          updatedAt: entry.updatedAt,
+        });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -112,6 +161,7 @@ class FileSearchPageCache {
     const payload: SearchPageCacheFile = {
       version: 1,
       entries: [...this.entries.values()].sort((left, right) => left.url.localeCompare(right.url)),
+      canonicalEntries: [...this.canonicalEntries.values()].sort((left, right) => left.key.localeCompare(right.key)),
     };
     await writeFile(this.filePath, JSON.stringify(payload, null, 2), 'utf8');
   }

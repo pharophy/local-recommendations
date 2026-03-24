@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import { AirtableClient } from '../airtable/client.js';
-import { SearchMetadataRepository } from '../airtable/repositories.js';
+import { ExperienceRepository, SearchMetadataRepository } from '../airtable/repositories.js';
 import {
   renderSchemaCsvHeaders,
   renderSchemaMarkdown,
   renderSeedMetadataJson,
 } from '../airtable/schema.js';
 import { createRuntimeConfig } from '../config/runtime.js';
-import { isExperienceCategory } from '../domain/categories.js';
+import { EXPERIENCE_CATEGORIES, isExperienceCategory } from '../domain/categories.js';
 import { createLogger } from '../utils/logger.js';
 import { runDailyWorkflow } from '../workflows/daily-run.js';
 
@@ -50,6 +50,19 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === 'clear-experience-tables') {
+    const dryRun = args.includes('--dry-run');
+    const repository = new ExperienceRepository(client, config);
+    const cleared = await Promise.all(
+      EXPERIENCE_CATEGORIES.map(async (category) => ({
+        category,
+        count: await repository.clearCategory(category, dryRun),
+      })),
+    );
+    console.log(JSON.stringify({ dryRun, cleared }, null, 2));
+    return;
+  }
+
   if (command === 'docs-airtable-schema') {
     if (args.includes('--csv')) {
       console.log(renderSchemaCsvHeaders());
@@ -80,6 +93,7 @@ Commands:
   daily-run [--dry-run]
   check-airtable
   seed-search-metadata [--dry-run]
+  clear-experience-tables [--dry-run]
   docs-airtable-schema [--csv|--seed-json]
 
 Scripts:
@@ -88,6 +102,7 @@ Scripts:
   npm run daily:dry
   npm run check:airtable
   npm run seed:metadata
+  npm run clear:experiences
   npm run docs:schema`);
 }
 

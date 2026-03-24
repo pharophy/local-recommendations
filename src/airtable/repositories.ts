@@ -118,6 +118,25 @@ export class ExperienceRepository {
       experiences.map((experience) => experienceToAirtableFields(category, experience)),
     );
   }
+
+  public async clearCategory(category: ExperienceCategory, dryRun: boolean): Promise<number> {
+    const rows = await this.client.listRecords<AirtableFields>(this.config.tableNames[category], {
+      maxRecords: 1000,
+    });
+
+    if (dryRun || rows.length === 0) {
+      return rows.length;
+    }
+
+    for (let index = 0; index < rows.length; index += 10) {
+      await this.client.deleteRecords(
+        this.config.tableNames[category],
+        rows.slice(index, index + 10).map((row) => row.id),
+      );
+    }
+
+    return rows.length;
+  }
 }
 
 export function parseSearchMetadataRecord(

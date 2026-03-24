@@ -461,4 +461,57 @@ describe('BraveSearchProvider', () => {
     expect(elixir?.summary).toContain('dessert-lab style presentation');
   });
 
+  it('rejects generic single-word cuisine names extracted from editorial pages', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              web: {
+                results: [
+                  {
+                    title: 'Orange County sushi hidden gems',
+                    url: 'https://orangecoast.com/ocdining/hidden-sushi-gems/',
+                    description: 'A roundup of standout sushi spots.',
+                  },
+                ],
+              },
+            }),
+            { status: 200 },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            `
+              <html>
+                <body>
+                  <main>
+                    <p><strong>Sushi</strong> in Orange has waterfront views and cocktails.</p>
+                  </main>
+                </body>
+              </html>
+            `,
+            { status: 200 },
+          ),
+        ),
+    );
+
+    const provider = new BraveSearchProvider(buildConfig(), { timeoutMs: 1000, retryCount: 0 });
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    const records = await provider.discover({
+      metadata: buildDefaultSearchMetadata('Restaurants'),
+      logger,
+    });
+
+    expect(records.some((record) => record.title === 'Sushi')).toBe(false);
+  });
+
 });

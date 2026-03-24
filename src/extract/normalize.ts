@@ -17,7 +17,7 @@ export function normalizeCandidate(
   const normalizedTitle =
     raw.category === 'SpecialEvents' ? normalizeEventTitle(raw.title) : normalizeWhitespace(raw.title);
   const description = normalizeWhitespace(raw.summary ?? raw.title);
-  const themes = [...new Set([...(raw.tags ?? []), ...matchThemeTerms(description, metadata)])];
+  const themes = buildThemes(raw, normalizedTitle, description, metadata);
   const startDate =
     raw.category === 'SpecialEvents' ? parseLooseDate(raw.rawDateText)?.toISOString() : undefined;
   const city = raw.city ?? inferredLocation?.city ?? raw.region ?? 'Unknown';
@@ -41,22 +41,15 @@ export function normalizeCandidate(
     audience: metadata.audienceBias,
     kidFriendly: metadata.kidFocus || themes.some((theme) => theme.includes('kid')),
     indoorOutdoor: metadata.indoorOutdoorBias ?? inferIndoorOutdoor(raw.category),
-    priceLevel: metadata.priceBias ?? '$$',
+    priceLevel: normalizeRestaurantPriceLevel(metadata.priceBias),
     reservationRecommended: raw.category === 'Restaurants' || raw.category === 'SpecialEvents',
-    website: raw.url,
+    website: raw.category === 'Restaurants' ? normalizeRestaurantWebsiteUrl(raw.url) : raw.url,
     sourceName: raw.source.name,
     sourceUrl: raw.source.url,
-    canonicalUrl: raw.url,
+    canonicalUrl: raw.category === 'Restaurants' ? normalizeRestaurantWebsiteUrl(raw.url) : raw.url,
     lastVerifiedAt: now.toISOString(),
-    searchFocusSnapshot: [
-      ...metadata.searchFocus,
-      ...metadata.includeTerms,
-      ...metadata.excludeTerms.map((term) => `!${term}`),
-    ].join(', '),
-    discoveryNotes:
-      raw.provenance === 'search'
-        ? `Discovered via web search from ${raw.source.name}`
-        : `Discovered from ${raw.source.name}`,
+    searchFocusSnapshot: buildSearchFocusSnapshot(raw, normalizedTitle, description, metadata),
+    discoveryNotes: buildDiscoveryNotes(raw, normalizedTitle, description, themes),
     status: 'New',
     createdByBotAt: now.toISOString(),
     visited: false,
@@ -68,7 +61,8 @@ export function normalizeCandidate(
     candidate.neighborhoodOrArea = city;
   }
   if (raw.category === 'Restaurants') {
-    candidate.cuisine = inferCuisine(description);
+    candidate.cuisine = inferCuisine(normalizedTitle, description, themes);
+    candidate.priceLevel = inferRestaurantPriceLevel(description, metadata.priceBias);
   }
   if (raw.category === 'Nature') {
     candidate.areaType = inferAreaType(description);
@@ -277,6 +271,129 @@ function matchThemeTerms(description: string, metadata: SearchMetadata): string[
   );
 }
 
+function buildThemes(
+  raw: RawDiscoveryRecord,
+  title: string,
+  description: string,
+  metadata: SearchMetadata,
+): string[] {
+  if (raw.category !== 'Restaurants') {
+    return [...new Set([...(raw.tags ?? []), ...matchThemeTerms(description, metadata)])];
+  }
+
+  const haystack = `${title} ${description}`.toLowerCase();
+  const themes = new Set<string>();
+
+  for (const term of [...metadata.searchFocus, ...metadata.includeTerms]) {
+    if (haystack.includes(term.toLowerCase())) {
+      themes.add(term);
+    }
+  }
+
+  if (haystack.includes('five-element') || haystack.includes('themed') || haystack.includes('tiki')) {
+    themes.add('themed atmosphere');
+  }
+  if (haystack.includes('immersive') || haystack.includes('transportive') || haystack.includes('interactive')) {
+    themes.add('immersive dining');
+  }
+  if (haystack.includes('hidden bar') || haystack.includes('speakeasy') || haystack.includes('hidden lounge')) {
+    themes.add('hidden-gem bar');
+  }
+  if (haystack.includes('tasting menu') || haystack.includes('omakase') || haystack.includes('culinary theater')) {
+    themes.add('chef-driven tasting');
+  }
+  if (haystack.includes('rooftop') || haystack.includes('panoramic views') || haystack.includes('waterfront') || haystack.includes('hilltop')) {
+    themes.add('destination setting');
+  }
+  if (haystack.includes('dessert lab') || haystack.includes('soft serve') || haystack.includes('boba') || haystack.includes('ice cream')) {
+    themes.add('dessert concept');
+  }
+  if (haystack.includes('live music')) {
+    themes.add('live music dining');
+  }
+  if (haystack.includes('brunch')) {
+    themes.add('brunch');
+  }
+  if (haystack.includes('cocktail') || haystack.includes('sommelier')) {
+    themes.add('cocktail-forward');
+  }
+
+  return [...themes].slice(0, 5);
+}
+
+function buildSearchFocusSnapshot(
+  raw: RawDiscoveryRecord,
+  title: string,
+  description: string,
+  metadata: SearchMetadata,
+): string {
+  if (raw.category !== 'Restaurants') {
+    return [
+      ...metadata.searchFocus,
+      ...metadata.includeTerms,
+      ...metadata.excludeTerms.map((term) => `!${term}`),
+    ].join(', ');
+  }
+
+  const haystack = `${title} ${description}`.toLowerCase();
+  const mealTypes: string[] = [];
+
+  if (haystack.includes('brunch')) {
+    mealTypes.push('Brunch');
+  }
+  if (haystack.includes('lunch')) {
+    mealTypes.push('Lunch');
+  }
+  if (
+    haystack.includes('dinner') ||
+    haystack.includes('date night') ||
+    haystack.includes('steakhouse') ||
+    haystack.includes('tapas') ||
+    haystack.includes('small plates')
+  ) {
+    mealTypes.push('Dinner');
+  }
+  if (haystack.includes('dessert') || haystack.includes('soft serve') || haystack.includes('ice cream') || haystack.includes('boba')) {
+    mealTypes.push('Dessert');
+  }
+  if (haystack.includes('cocktail') || haystack.includes('bar') || haystack.includes('sommelier')) {
+    mealTypes.push('Drinks');
+  }
+  if (haystack.includes('tasting menu') || haystack.includes('omakase') || haystack.includes('chef tasting')) {
+    mealTypes.push('Tasting Menu');
+  }
+
+  return mealTypes.length > 0 ? [...new Set(mealTypes)].join(', ') : 'Dinner';
+}
+
+function buildDiscoveryNotes(
+  raw: RawDiscoveryRecord,
+  title: string,
+  description: string,
+  themes: string[],
+): string {
+  if (raw.category !== 'Restaurants') {
+    return raw.provenance === 'search'
+      ? `Discovered via web search from ${raw.source.name}`
+      : `Discovered from ${raw.source.name}`;
+  }
+
+  const justification = extractRestaurantExperienceEvidence(title, description, themes);
+  const sourceType =
+    raw.provenance === 'search'
+      ? raw.tags?.includes('canonicalized-official')
+        ? 'search plus official site verification'
+        : 'web search'
+      : raw.source.name;
+  const sourceLabel = raw.provenance === 'search' ? raw.source.name : 'curated source';
+
+  if (justification.length > 0) {
+    return `Selected from ${sourceType} because the page shows ${justification.slice(0, 2).join(' and ')}. Primary source: ${sourceLabel}.`;
+  }
+
+  return `Selected from ${sourceType} because it matched the restaurant discovery criteria. Primary source: ${sourceLabel}.`;
+}
+
 function buildWhyUnique(
   category: RawDiscoveryRecord['category'],
   title: string,
@@ -377,18 +494,105 @@ function inferIndoorOutdoor(category: RawDiscoveryRecord['category']): string {
   return 'Unknown';
 }
 
-function inferCuisine(description: string): string {
-  const lower = description.toLowerCase();
-  if (lower.includes('taco') || lower.includes('mexic')) {
+function inferCuisine(title: string, description: string, themes: string[]): string {
+  const lower = `${title} ${description} ${themes.join(' ')}`.toLowerCase();
+  if (lower.includes('mexic') || lower.includes('taco') || lower.includes('cantina')) {
     return 'Mexican';
   }
-  if (lower.includes('sushi') || lower.includes('ramen')) {
+  if (lower.includes('sushi') || lower.includes('ramen') || lower.includes('omakase') || lower.includes('japanese')) {
     return 'Japanese';
   }
-  if (lower.includes('steak') || lower.includes('grill')) {
+  if (lower.includes('steak') || lower.includes('chophouse') || lower.includes('steakhouse')) {
     return 'Steakhouse';
   }
-  return 'Unknown';
+  if (lower.includes('italian') || lower.includes('trattoria')) {
+    return 'Italian';
+  }
+  if (lower.includes('mediterranean')) {
+    return 'Mediterranean';
+  }
+  if (lower.includes('seafood') || lower.includes('oyster')) {
+    return 'Seafood';
+  }
+  if (lower.includes('asian-fusion') || lower.includes('fusion')) {
+    return 'Asian Fusion';
+  }
+  if (lower.includes('dessert') || lower.includes('soft serve') || lower.includes('ice cream') || lower.includes('boba')) {
+    return 'Dessert / Drinks';
+  }
+  if (lower.includes('tapas') || lower.includes('small plates')) {
+    return 'Small Plates';
+  }
+  if (lower.includes('new american') || lower.includes('seasonal')) {
+    return 'New American';
+  }
+  return 'Experience-Driven Restaurant';
+}
+
+function inferRestaurantPriceLevel(description: string, metadataPriceBias: string | null): string {
+  const lower = description.toLowerCase();
+  if (lower.includes('luxury') || lower.includes('splurge') || lower.includes('prix fixe') || lower.includes('tasting menu')) {
+    return '$$$$';
+  }
+  if (
+    lower.includes('exclusive') ||
+    lower.includes('sommelier') ||
+    lower.includes('chef-driven') ||
+    lower.includes('special occasions') ||
+    lower.includes('steakhouse')
+  ) {
+    return '$$$';
+  }
+  if (lower.includes('casual') || lower.includes('brunch') || lower.includes('bar') || lower.includes('cafe')) {
+    return '$$';
+  }
+  if (lower.includes('quick bites') || lower.includes('to-go-only') || lower.includes('counter-service')) {
+    return '$';
+  }
+  return normalizeRestaurantPriceLevel(metadataPriceBias);
+}
+
+function normalizeRestaurantPriceLevel(value: string | null | undefined): string {
+  const normalized = value?.trim().toLowerCase() ?? '';
+  if (!normalized) {
+    return '$$';
+  }
+  const dollarCount = (value?.match(/\$/g) ?? []).length;
+  if (dollarCount > 0) {
+    return '$'.repeat(Math.min(Math.max(dollarCount, 1), 4));
+  }
+  if (normalized.includes('free') || normalized.includes('budget') || normalized.includes('cheap')) {
+    return '$';
+  }
+  if (
+    normalized.includes('moderate') ||
+    normalized.includes('mid') ||
+    normalized.includes('casual')
+  ) {
+    return '$$';
+  }
+  if (
+    normalized.includes('mid-to-high') ||
+    normalized.includes('premium') ||
+    normalized.includes('upscale')
+  ) {
+    return '$$$';
+  }
+  if (normalized.includes('luxury') || normalized.includes('splurge')) {
+    return '$$$$';
+  }
+  return '$$';
+}
+
+function normalizeRestaurantWebsiteUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = '';
+    url.search = '';
+    return url.toString();
+  } catch {
+    return value;
+  }
 }
 
 function inferAreaType(description: string): string {

@@ -1,5 +1,6 @@
 import type { CandidateEnricher, DiscoveryProvider } from '../provider.js';
 import type { RuntimeConfig } from '../../config/runtime.js';
+import type { RequestMetrics } from '../../domain/experience.js';
 import { CURATED_HTML_SOURCES } from '../sources/curated-sources.js';
 import { HtmlSourceProvider } from './html-source-provider.js';
 import { BraveSearchProvider } from '../search/brave-search-provider.js';
@@ -14,7 +15,7 @@ export interface DiscoveryServices {
   enrichers: CandidateEnricher[];
 }
 
-export function createDiscoveryProviders(config: RuntimeConfig): DiscoveryServices {
+export function createDiscoveryProviders(config: RuntimeConfig, metrics?: RequestMetrics): DiscoveryServices {
   const discoveryProviders: DiscoveryProvider[] = [];
   const enrichers: CandidateEnricher[] = [];
   const searchPageCache = config.webSearch.pageCacheEnabled
@@ -28,6 +29,8 @@ export function createDiscoveryProviders(config: RuntimeConfig): DiscoveryServic
     const htmlProvider = new HtmlSourceProvider(enabledCuratedSources, {
       timeoutMs: config.env.HTTP_TIMEOUT_MS,
       retryCount: config.env.HTTP_RETRY_COUNT,
+      metrics,
+      requestCounterKey: 'curatedPageFetchRequests',
     });
     discoveryProviders.push(htmlProvider);
   }
@@ -36,6 +39,7 @@ export function createDiscoveryProviders(config: RuntimeConfig): DiscoveryServic
     const braveProvider = new BraveSearchProvider(config, {
       timeoutMs: config.env.HTTP_TIMEOUT_MS,
       retryCount: config.env.HTTP_RETRY_COUNT,
+      metrics,
     }, searchPageCache);
     discoveryProviders.push(braveProvider);
     enrichers.push(braveProvider);
@@ -45,6 +49,7 @@ export function createDiscoveryProviders(config: RuntimeConfig): DiscoveryServic
     const googleProvider = new GoogleCustomSearchProvider(config, {
       timeoutMs: config.env.HTTP_TIMEOUT_MS,
       retryCount: config.env.HTTP_RETRY_COUNT,
+      metrics,
     }, searchPageCache);
     discoveryProviders.push(googleProvider);
     enrichers.push(googleProvider);

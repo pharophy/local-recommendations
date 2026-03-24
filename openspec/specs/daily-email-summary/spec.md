@@ -11,6 +11,10 @@ The system SHALL produce a daily summary email after each run that includes the 
 - **WHEN** one or more sources or categories fail during the run
 - **THEN** the summary email includes those warnings or failures
 
+#### Scenario: Summary includes request telemetry
+- **WHEN** the daily workflow completes
+- **THEN** the summary email includes request counters that distinguish search API calls, page fetches, Airtable requests, SMTP sends, retries, and relevant cache outcomes
+
 ### Requirement: SMTP delivery is configurable and previewable
 The system SHALL use SMTP configuration from environment variables, default the recipient to `shawn.souto@gmail.com`, and support a dry-run preview that prints the rendered digest without sending it.
 

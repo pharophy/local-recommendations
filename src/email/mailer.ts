@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 
 import type { AppEnv } from '../config/env.js';
+import type { RequestMetrics } from '../domain/experience.js';
 import type { Logger } from '../utils/logger.js';
 import type { RenderedEmail } from './summary.js';
 
@@ -24,6 +25,7 @@ export async function sendEmail(
   email: RenderedEmail,
   dryRun: boolean,
   logger: Logger,
+  metrics?: RequestMetrics,
 ): Promise<void> {
   if (dryRun) {
     logger.info('Dry-run email preview', {
@@ -34,6 +36,9 @@ export async function sendEmail(
   }
 
   const transport = nodemailer.createTransport(buildSmtpOptions(env));
+  if (metrics) {
+    metrics.smtpRequests += 1;
+  }
 
   await transport.sendMail({
     from: env.EMAIL_FROM,

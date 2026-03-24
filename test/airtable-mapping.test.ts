@@ -42,6 +42,45 @@ describe('experienceToAirtableFields', () => {
     expect(fields).not.toHaveProperty('Tried On');
   });
 
+  it('writes improved user-facing restaurant fields without debug-style placeholders', () => {
+    const experience: ExperienceCandidate = {
+      category: 'Restaurants',
+      name: 'TRUST',
+      region: 'Orange County',
+      city: 'Santa Ana',
+      neighborhoodOrArea: 'Santa Ana',
+      shortDescription: 'Chef-inspired tapas with sommelier pairings in an intimate 18-seat culinary theater.',
+      whyUnique: 'Notable for a chef-led tasting format and an intimate experience-driven format.',
+      themes: ['chef-driven tasting', 'cocktail-forward'],
+      audience: ['date night'],
+      kidFriendly: false,
+      indoorOutdoor: 'Indoor',
+      priceLevel: '$$$',
+      reservationRecommended: true,
+      website: 'https://trustdtsa.com/',
+      sourceName: 'Brave Web Search',
+      sourceUrl: 'https://api.search.brave.com/res/v1/web/search',
+      canonicalUrl: 'https://trustdtsa.com/',
+      botScore: 20,
+      lastVerifiedAt: new Date().toISOString(),
+      duplicateKey: 'restaurants::trust::santa-ana::https-trustdtsa-com',
+      searchFocusSnapshot: 'Dinner, Drinks',
+      discoveryNotes:
+        'Selected from web search because the page shows a chef-led tasting format and an intimate experience-driven format. Primary source: Brave Web Search.',
+      status: 'New',
+      createdByBotAt: new Date().toISOString(),
+      visited: false,
+      cuisine: 'Small Plates',
+    };
+
+    const fields = experienceToAirtableFields('Restaurants', experience);
+    expect(fields['Themes']).toBe('chef-driven tasting, cocktail-forward');
+    expect(fields['Price Tier']).toBe('$$$');
+    expect(fields['Meal Type']).toBe('Dinner, Drinks');
+    expect(fields['Cuisine / Style']).toBe('Small Plates');
+    expect(fields['Bot Notes']).toContain('because the page shows');
+  });
+
   it('does not write a generic City field for nature records', () => {
     const experience: ExperienceCandidate = {
       category: 'Nature',

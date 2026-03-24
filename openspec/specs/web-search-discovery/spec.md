@@ -88,11 +88,11 @@ The system SHALL bound how much search enrichment can alter descriptive fields o
 - **THEN** the system may add themes, summary cues, or discovery notes derived from that evidence
 
 #### Scenario: Enrichment does not override canonical facts
-- **WHEN** enrichment conflicts with the curated source’s canonical name, URL, or basic location facts
+- **WHEN** enrichment conflicts with the curated source's canonical name, URL, or basic location facts
 - **THEN** the curated-source facts remain authoritative
 
 ### Requirement: Search behavior is bounded and configurable
-The system SHALL make search enablement, credentials, query limits, and result limits configurable so search can be enabled gradually and run within bounded cost and latency limits.
+The system SHALL make search enablement, credentials, query limits, result limits, and category toggles configurable so search can be enabled gradually and run within bounded cost and latency limits.
 
 #### Scenario: Search is disabled
 - **WHEN** web search is not enabled in runtime configuration

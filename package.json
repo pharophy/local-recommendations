@@ -21,6 +21,7 @@
     "daily:dry": "tsx src/cli/index.ts daily-run --dry-run",
     "check:airtable": "tsx src/cli/index.ts check-airtable",
     "seed:metadata": "tsx src/cli/index.ts seed-search-metadata",
+    "clear:experiences": "tsx src/cli/index.ts clear-experience-tables",
     "docs:schema": "tsx src/cli/index.ts docs-airtable-schema"
   },
   "keywords": [

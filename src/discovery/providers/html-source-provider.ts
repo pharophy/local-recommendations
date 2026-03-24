@@ -205,6 +205,8 @@ export class HtmlSourceProvider implements DiscoveryProvider {
         },
         {
           ...this.httpOptions,
+          metrics: context.metrics,
+          requestCounterKey: 'curatedPageFetchRequests',
           retryCount: source.retryCount ?? this.httpOptions.retryCount,
           timeoutMs: source.timeoutMs ?? this.httpOptions.timeoutMs,
         },

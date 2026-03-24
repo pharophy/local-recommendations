@@ -22,6 +22,10 @@ The system SHALL use category-aware source selection, normalization, and field m
 - **WHEN** a normalized candidate is prepared for Airtable insertion
 - **THEN** the system maps the candidate into the field set required by that category's Airtable table
 
+#### Scenario: Restaurant inserts keep normalized field quality
+- **WHEN** a restaurant candidate is prepared for Airtable insertion
+- **THEN** region labels, website fields, price tiers, and descriptive bot-authored fields are normalized into stable, user-facing values rather than placeholder or inconsistent formats
+
 ### Requirement: Search metadata influences ranking and filtering
 The system SHALL derive discovery queries, ranking boosts, and filters from `SearchFocus`, `IncludeTerms`, `ExcludeTerms`, `AudienceBias`, `KidFocus`, `IndoorOutdoorBias`, `PriceBias`, `RegionPriority`, `DateWindowDays`, and `SourcePriorityNotes`.
 
@@ -54,6 +58,10 @@ The system SHALL support a dry-run mode that performs discovery, scoring, filter
 #### Scenario: Dry-run suppresses writes
 - **WHEN** the daily workflow is run with `--dry-run`
 - **THEN** no Airtable create requests or SMTP send operations occur
+
+#### Scenario: Dry-run reports request usage
+- **WHEN** the daily workflow is run with `--dry-run`
+- **THEN** the output includes request counters that distinguish search API calls, page fetches, Airtable requests, SMTP sends, retries, and relevant cache outcomes
 
 ### Requirement: Failures allow partial success
 The system SHALL continue processing remaining sources and categories when an individual source fetch or category step fails, and SHALL report warnings in logs and the daily summary.

@@ -1,10 +1,11 @@
 import type { SearchMetadata } from '../domain/search-metadata.js';
-import type { CandidateEnrichment, ExperienceCandidate, RawDiscoveryRecord } from '../domain/experience.js';
+import type { CandidateEnrichment, ExperienceCandidate, RawDiscoveryRecord, RequestMetrics } from '../domain/experience.js';
 import type { Logger } from '../utils/logger.js';
 
 export interface DiscoveryContext {
   metadata: SearchMetadata;
   logger: Logger;
+  metrics?: RequestMetrics;
 }
 
 export interface DiscoveryProvider {
@@ -14,6 +15,7 @@ export interface DiscoveryProvider {
 export interface EnrichmentContext {
   metadata: SearchMetadata;
   logger: Logger;
+  metrics?: RequestMetrics;
 }
 
 export interface CandidateEnricher {

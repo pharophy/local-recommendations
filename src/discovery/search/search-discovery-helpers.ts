@@ -6,6 +6,7 @@ import { normalizeText, normalizeWhitespace } from '../../utils/strings.js';
 import type { Logger } from '../../utils/logger.js';
 import type { RawDiscoveryRecord } from '../../domain/experience.js';
 import type { SearchMetadata } from '../../domain/search-metadata.js';
+import type { RequestMetrics } from '../../domain/experience.js';
 import {
   createContentHash,
   type CachedRestaurantMention,
@@ -35,6 +36,7 @@ const BLOCKED_DISCOVERY_DOMAINS = [
   'maps.apple.com',
   'pinterest.com',
   'tripadvisor.com',
+  'wanderlog.com',
   'x.com',
   'yelp.com',
   'youtube.com',
@@ -106,11 +108,20 @@ const RESTAURANT_MARKETPLACE_DOMAINS = [
   'yelp.com',
   'opentable.com',
   'resy.com',
+  'wanderlog.com',
   'facebook.com',
   'instagram.com',
   'tiktok.com',
   'nextdoor.com',
   'guide.michelin.com',
+  'menupix.com',
+  'restaurantguru.com',
+  'yellowpages.com',
+  'sfgate.com',
+  'laist.com',
+  'ocrestaurantweek.com',
+  'timeout.com',
+  'thrillist.com',
 ];
 const RESTAURANT_EDITORIAL_URL_PATTERNS = [
   /\/neighborhood\//i,
@@ -200,8 +211,33 @@ const NON_VENUE_LOCATION_NAMES = new Set(
     'tustin',
   ],
 );
+const GENERIC_SINGLE_WORD_RESTAURANT_NAMES = new Set([
+  'sushi',
+  'omakase',
+  'ramen',
+  'pizza',
+  'brunch',
+  'breakfast',
+  'lunch',
+  'dinner',
+  'dessert',
+  'burgers',
+  'burger',
+  'seafood',
+  'steakhouse',
+  'grill',
+  'tacos',
+  'taco',
+  'coffee',
+  'tea',
+  'bar',
+  'restaurant',
+  'kitchen',
+]);
 const MAX_EXPANDED_RESTAURANTS_PER_PAGE = 5;
 const MAX_TEXT_BLOCKS = 60;
+const FAILED_SEED_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const EMPTY_SEED_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 interface ExtractedRestaurantMention {
   name: string;
@@ -249,9 +285,17 @@ export async function buildDiscoveryRecordsFromSeed(
   httpOptions: HttpClientOptions,
   logger: Logger,
   cache: SearchPageCache,
+  metrics?: RequestMetrics,
 ): Promise<RawDiscoveryRecord[]> {
   if (metadata.tableName === 'Restaurants' && shouldExpandRestaurantSeed(seed.url, seed.title)) {
-    return expandRestaurantSeed(seed, metadata, source, httpOptions, logger, cache);
+    const cached = await cache.get(seed.url);
+    if (shouldSkipSeedFetch(cached)) {
+      if (metrics) {
+        metrics.seedCacheSkips += 1;
+      }
+      return [];
+    }
+    return expandRestaurantSeed(seed, metadata, source, httpOptions, logger, cache, cached, metrics);
   }
 
   return [mapSearchSeedToRawRecord(seed, metadata, source)];
@@ -288,6 +332,33 @@ export function shouldCanonicalizeRestaurantRecord(record: RawDiscoveryRecord): 
   );
 }
 
+export function scoreRestaurantCanonicalizationPriority(record: RawDiscoveryRecord): number {
+  const haystack = `${record.title} ${record.summary ?? ''}`.toLowerCase();
+  let score = 0;
+  if ((record.city ?? '').trim().length > 0) {
+    score += 3;
+  }
+  if (hasVenueKeyword(record.title)) {
+    score += 4;
+  }
+  if (record.title.trim().split(/\s+/).length >= 2) {
+    score += 2;
+  }
+  if (haystack.includes('immersive') || haystack.includes('themed') || haystack.includes('hidden gem')) {
+    score += 3;
+  }
+  if (haystack.includes('chef') || haystack.includes('tasting') || haystack.includes('omakase')) {
+    score += 3;
+  }
+  if (haystack.includes('dessert') || haystack.includes('soft serve') || haystack.includes('boba')) {
+    score += 3;
+  }
+  if (haystack.includes('rooftop') || haystack.includes('waterfront') || haystack.includes('hilltop')) {
+    score += 2;
+  }
+  return score;
+}
+
 export function isRejectedRestaurantCandidateUrl(url: string, candidateName?: string): boolean {
   const domain = extractDomain(url);
   const lowerUrl = url.toLowerCase();
@@ -295,6 +366,9 @@ export function isRejectedRestaurantCandidateUrl(url: string, candidateName?: st
     RESTAURANT_COMMUNITY_EDITORIAL_DOMAINS.some((value) => domain.includes(value)) ||
     RESTAURANT_MARKETPLACE_DOMAINS.some((value) => domain.includes(value)) ||
     RESTAURANT_EDITORIAL_URL_PATTERNS.some((pattern) => pattern.test(lowerUrl)) ||
+    lowerUrl.includes('/search?') ||
+    lowerUrl.includes('/restaurant_review') ||
+    lowerUrl.includes('/restaurants/') ||
     (Boolean(candidateName) && looksLikePersonName(candidateName!) && !hasVenueKeyword(url))
   );
 }
@@ -368,8 +442,9 @@ async function expandRestaurantSeed(
   httpOptions: HttpClientOptions,
   logger: Logger,
   cache: SearchPageCache,
+  cached: SearchPageCacheEntry | null,
+  metrics?: RequestMetrics,
 ): Promise<RawDiscoveryRecord[]> {
-  const cached = await cache.get(seed.url);
   const mentions: ExtractedRestaurantMention[] = [];
 
   try {
@@ -388,7 +463,7 @@ async function expandRestaurantSeed(
       {
         headers,
       },
-      httpOptions,
+      { ...httpOptions, metrics, requestCounterKey: 'searchPageFetchRequests' },
     );
 
     if (response.status === 304 && cached) {
@@ -410,6 +485,22 @@ async function expandRestaurantSeed(
       sourceId: source.id,
       error: `Failed to expand restaurant seed ${seed.url}: ${error instanceof Error ? error.message : String(error)}`,
     });
+    const failedEntry: SearchPageCacheEntry = {
+      url: seed.url,
+      mentions: cached?.mentions ?? [],
+      updatedAt: new Date().toISOString(),
+      fetchFailedAt: new Date().toISOString(),
+    };
+    if (cached?.contentHash) {
+      failedEntry.contentHash = cached.contentHash;
+    }
+    if (cached?.etag) {
+      failedEntry.etag = cached.etag;
+    }
+    if (cached?.lastModified) {
+      failedEntry.lastModified = cached.lastModified;
+    }
+    await cache.set(failedEntry);
     if (cached) {
       mentions.push(...cached.mentions.map(toExtractedRestaurantMention));
     }
@@ -426,6 +517,29 @@ async function expandRestaurantSeed(
     .map((mention) => convertMentionToRawRecord(mention, seed, metadata, source))
     .filter((record): record is RawDiscoveryRecord => record !== null)
     .slice(0, MAX_EXPANDED_RESTAURANTS_PER_PAGE);
+}
+
+function shouldSkipSeedFetch(cached: SearchPageCacheEntry | null): boolean {
+  if (!cached) {
+    return false;
+  }
+
+  const now = Date.now();
+  if (cached.fetchFailedAt) {
+    const failedAt = Date.parse(cached.fetchFailedAt);
+    if (!Number.isNaN(failedAt) && now - failedAt < FAILED_SEED_RETRY_WINDOW_MS) {
+      return true;
+    }
+  }
+
+  if (cached.mentions.length === 0) {
+    const updatedAt = Date.parse(cached.updatedAt);
+    if (!Number.isNaN(updatedAt) && now - updatedAt < EMPTY_SEED_RETRY_WINDOW_MS) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function convertMentionToRawRecord(
@@ -651,6 +765,9 @@ function isLikelyRestaurantName(value: string): boolean {
 
   const wordCount = trimmed.split(/\s+/).length;
   if (wordCount > 7) {
+    return false;
+  }
+  if (wordCount === 1 && GENERIC_SINGLE_WORD_RESTAURANT_NAMES.has(trimmed.toLowerCase())) {
     return false;
   }
 

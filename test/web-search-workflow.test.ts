@@ -252,4 +252,43 @@ describe('web search workflow integration', () => {
     expect(result.inserted).toHaveLength(0);
     expect(repository.getExisting).toHaveBeenCalled();
   });
+
+  it('rejects search-derived restaurant candidates that point to directory roundup sites instead of official websites', async () => {
+    const provider: DiscoveryProvider = {
+      async discover() {
+        return [
+          {
+            category: 'Restaurants',
+            source: {
+              id: 'web-search-brave',
+              name: 'Brave Web Search',
+              url: 'https://search.brave.com/',
+            },
+            title: 'RANCH Restaurant',
+            url: 'https://wanderlog.com/list/geoCategory/222412/nice-restaurants-and-fine-dining-in-orange-county',
+            summary: 'A roundup entry for a restaurant.',
+            provenance: 'search',
+          },
+        ];
+      },
+    };
+    const repository = {
+      getExisting: vi.fn().mockResolvedValue([]),
+      insert: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const result = await processCategory(
+      buildDefaultSearchMetadata('Restaurants'),
+      [provider],
+      [],
+      repository as never,
+      true,
+      buildLogger(),
+      buildRuntimeConfig(),
+    );
+
+    expect(result.discoveredCount).toBe(1);
+    expect(result.inserted).toHaveLength(0);
+    expect(repository.getExisting).toHaveBeenCalled();
+  });
 });

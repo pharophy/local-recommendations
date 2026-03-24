@@ -9,6 +9,17 @@ describe('renderDailySummaryEmail', () => {
       finishedAt: '2026-03-22T08:05:00.000Z',
       dryRun: true,
       warnings: ['One source timed out'],
+      requestMetrics: {
+        braveSearchRequests: 6,
+        googleSearchRequests: 0,
+        searchPageFetchRequests: 4,
+        curatedPageFetchRequests: 1,
+        airtableRequests: 3,
+        smtpRequests: 0,
+        httpRetries: 1,
+        seedCacheSkips: 1,
+        canonicalCacheHits: 2,
+      },
       results: [
         {
           category: 'Activities',
@@ -44,12 +55,25 @@ describe('renderDailySummaryEmail', () => {
           rejected: [],
           warnings: [],
           discoveredCount: 3,
+          requestMetrics: {
+            braveSearchRequests: 0,
+            googleSearchRequests: 0,
+            searchPageFetchRequests: 0,
+            curatedPageFetchRequests: 2,
+            airtableRequests: 0,
+            smtpRequests: 0,
+            httpRetries: 0,
+            seedCacheSkips: 0,
+            canonicalCacheHits: 0,
+          },
         },
       ],
     });
 
     expect(email.subject).toContain('2026-03-22');
     expect(email.text).toContain('Activities: inserted 1');
+    expect(email.text).toContain('Total requests: brave 6');
+    expect(email.text).toContain('Requests: brave 0, google 0, search pages 0, curated pages 2');
     expect(email.text).toContain('Mystic Trail');
   });
 });
