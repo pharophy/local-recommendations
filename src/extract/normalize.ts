@@ -1,7 +1,7 @@
 import type { ExperienceCandidate, RawDiscoveryRecord } from '../domain/experience.js';
 import type { SearchMetadata } from '../domain/search-metadata.js';
 import { parseLooseDate } from '../utils/dates.js';
-import { normalizeText, normalizeWhitespace } from '../utils/strings.js';
+import { normalizeRegionLabel, normalizeText, normalizeWhitespace } from '../utils/strings.js';
 
 export function normalizeCandidate(
   raw: RawDiscoveryRecord,
@@ -22,11 +22,13 @@ export function normalizeCandidate(
     raw.category === 'SpecialEvents' ? parseLooseDate(raw.rawDateText)?.toISOString() : undefined;
   const city = raw.city ?? inferredLocation?.city ?? raw.region ?? 'Unknown';
   const region =
-    inferredLocation?.region ??
-    inferRegionFromCity(city) ??
-    raw.region ??
-    metadata.regionPriority[0] ??
-    'Orange County';
+    normalizeRegionLabel(
+      inferredLocation?.region ??
+      inferRegionFromCity(city) ??
+      raw.region ??
+      metadata.regionPriority[0] ??
+      'Orange County',
+    );
 
   const candidate: Omit<ExperienceCandidate, 'botScore' | 'duplicateKey'> = {
     category: raw.category,
@@ -34,7 +36,7 @@ export function normalizeCandidate(
     region,
     city,
     shortDescription: description.slice(0, 280),
-    whyUnique: buildWhyUnique(description, themes),
+    whyUnique: buildWhyUnique(raw.category, normalizedTitle, description, themes),
     themes,
     audience: metadata.audienceBias,
     kidFriendly: metadata.kidFocus || themes.some((theme) => theme.includes('kid')),
@@ -51,10 +53,15 @@ export function normalizeCandidate(
       ...metadata.includeTerms,
       ...metadata.excludeTerms.map((term) => `!${term}`),
     ].join(', '),
-    discoveryNotes: `Discovered from ${raw.source.name}`,
+    discoveryNotes:
+      raw.provenance === 'search'
+        ? `Discovered via web search from ${raw.source.name}`
+        : `Discovered from ${raw.source.name}`,
     status: 'New',
     createdByBotAt: now.toISOString(),
     visited: false,
+    provenance: raw.provenance ?? 'curated',
+    enrichmentScoreBoost: 0,
   };
 
   if (city) {
@@ -270,12 +277,92 @@ function matchThemeTerms(description: string, metadata: SearchMetadata): string[
   );
 }
 
-function buildWhyUnique(description: string, themes: string[]): string {
+function buildWhyUnique(
+  category: RawDiscoveryRecord['category'],
+  title: string,
+  description: string,
+  themes: string[],
+): string {
+  if (category === 'Restaurants') {
+    const evidence = extractRestaurantExperienceEvidence(title, description, themes);
+    if (evidence.length > 0) {
+      return `Notable for ${evidence.slice(0, 2).join(' and ')}.`;
+    }
+
+    return 'Restaurant page lacks concrete evidence of a distinctive dining experience.';
+  }
+
   if (themes.length > 0) {
     return `Matches discovery focus around ${themes.slice(0, 3).join(', ')}.`;
   }
 
   return `Stands out based on source description: ${description.slice(0, 120)}`;
+}
+
+function extractRestaurantExperienceEvidence(
+  title: string,
+  description: string,
+  themes: string[],
+): string[] {
+  const haystack = `${title} ${description} ${themes.join(' ')}`.toLowerCase();
+  const evidence: string[] = [];
+
+  if (haystack.includes('immersive') || haystack.includes('transportive') || haystack.includes('interactive')) {
+    evidence.push('an immersive concept');
+  }
+  if (
+    haystack.includes('themed') ||
+    haystack.includes('storytelling') ||
+    haystack.includes('five-element') ||
+    haystack.includes('tiki')
+  ) {
+    evidence.push('a strongly themed atmosphere');
+  }
+  if (
+    haystack.includes('soft serve') ||
+    haystack.includes('boba') ||
+    haystack.includes('dessert lab') ||
+    haystack.includes('ice cream') ||
+    haystack.includes('liquid nitrogen')
+  ) {
+    evidence.push('a standout dessert-driven concept');
+  }
+  if (haystack.includes('speakeasy') || haystack.includes('hidden gem') || haystack.includes('hidden bar')) {
+    evidence.push('a hidden-gem feel');
+  }
+  if (
+    haystack.includes('chef tasting') ||
+    haystack.includes('tasting menu') ||
+    haystack.includes('culinary theater') ||
+    (haystack.includes('omakase') &&
+      (haystack.includes('counter') || haystack.includes('intimate') || haystack.includes('multi-course')))
+  ) {
+    evidence.push('a chef-led tasting format');
+  }
+  if (haystack.includes('tableside') || haystack.includes('dramatic presentation') || haystack.includes('theatrical')) {
+    evidence.push('theatrical presentation');
+  }
+  if (
+    haystack.includes('panoramic views') ||
+    haystack.includes('waterfront') ||
+    haystack.includes('hilltop') ||
+    haystack.includes('rooftop')
+  ) {
+    evidence.push('a destination-worthy setting');
+  }
+  if (
+    haystack.includes('18-seat') ||
+    haystack.includes('chef-inspired') ||
+    haystack.includes('sommelier pairings') ||
+    haystack.includes('hidden lounge')
+  ) {
+    evidence.push('an intimate experience-driven format');
+  }
+  if (haystack.includes('one-of-a-kind') || haystack.includes('cult favorite') || haystack.includes('local favorite')) {
+    evidence.push('a hard-to-find local favorite reputation');
+  }
+
+  return [...new Set(evidence)];
 }
 
 function inferIndoorOutdoor(category: RawDiscoveryRecord['category']): string {

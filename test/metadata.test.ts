@@ -16,4 +16,16 @@ describe('parseSearchMetadataRecord', () => {
     expect(metadata?.dailyTargetNewItems).toBe(5);
     expect(metadata?.regionPriority[0]).toBe('Orange County');
   });
+
+  it('normalizes region priority labels from Airtable notes', () => {
+    const metadata = parseSearchMetadataRecord(
+      {
+        TableName: 'Restaurants',
+        RegionPriority: 'Orange County first, Los Angeles second',
+      },
+      ['Orange County', 'Los Angeles', 'Temecula', 'San Diego'],
+    );
+
+    expect(metadata?.regionPriority).toEqual(['Orange County', 'Los Angeles']);
+  });
 });

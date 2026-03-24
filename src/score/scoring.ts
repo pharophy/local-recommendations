@@ -14,6 +14,31 @@ const UNIQUENESS_TERMS = [
   'overlook',
   'hands-on',
 ] as const;
+const RESTAURANT_EXPERIENCE_TERMS = [
+  'multi-sensory',
+  'transportive',
+  'tableside',
+  'dramatic presentation',
+  'dessert lab',
+  'liquid nitrogen',
+  'chef tasting',
+  'omakase',
+  'speakeasy',
+  'storytelling',
+  'interactive',
+  'cult favorite',
+  'local favorite',
+  'one-of-a-kind',
+] as const;
+const RESTAURANT_GENERIC_TERMS = [
+  'food news',
+  'dining guides',
+  'price points',
+  'brunch spots',
+  'latest',
+  'tastiest',
+  'restaurant guide',
+] as const;
 
 const NON_SPECIFIC_NAME_PATTERNS: Record<ExperienceCandidate['category'], RegExp[]> = {
   Activities: [
@@ -92,6 +117,20 @@ export function scoreCandidate(
     (score, term) => (haystack.includes(term) ? score + 2 : score),
     5,
   );
+  const restaurantExperienceBoost =
+    candidate.category === 'Restaurants'
+      ? RESTAURANT_EXPERIENCE_TERMS.reduce(
+          (score, term) => (haystack.includes(term) ? score + 4 : score),
+          0,
+        )
+      : 0;
+  const restaurantGenericPenalty =
+    candidate.category === 'Restaurants'
+      ? RESTAURANT_GENERIC_TERMS.reduce(
+          (score, term) => (haystack.includes(term) ? score - 5 : score),
+          0,
+        )
+      : 0;
   const relevance = [...metadata.searchFocus, ...metadata.includeTerms].reduce(
     (score, term) => (haystack.includes(term.toLowerCase()) ? score + 3 : score),
     0,
@@ -108,8 +147,15 @@ export function scoreCandidate(
   const indoorOutdoorBoost = scoreIndoorOutdoorBias(candidate.indoorOutdoor, metadata.indoorOutdoorBias);
   const priceBoost = scorePriceBias(candidate.priceLevel, metadata.priceBias);
   const sourceBoost = scoreSourcePriority(candidate, metadata.sourcePriorityNotes);
+  const enrichmentBoost = Math.min(Math.max(candidate.enrichmentScoreBoost ?? 0, 0), 3);
   const vaguePenalty = candidate.shortDescription.length < 40 ? -4 : 0;
   const duplicateLikePenalty = candidate.name.length < 5 ? -6 : 0;
+  const uniquenessEvidencePenalty =
+    candidate.category === 'Restaurants' &&
+    candidate.provenance === 'search' &&
+    !hasStrongRestaurantExperienceEvidence(candidate)
+      ? -10
+      : 0;
   const eventBoost =
     candidate.category === 'SpecialEvents'
       ? recencyBoost(candidate.startDate, metadata.dateWindowDays ?? 30, now)
@@ -117,6 +163,8 @@ export function scoreCandidate(
 
   return (
     uniqueness +
+    restaurantExperienceBoost +
+    restaurantGenericPenalty +
     relevance +
     exclusionPenalty +
     regionBoost +
@@ -124,8 +172,10 @@ export function scoreCandidate(
     indoorOutdoorBoost +
     priceBoost +
     sourceBoost +
+    enrichmentBoost +
     vaguePenalty +
     duplicateLikePenalty +
+    uniquenessEvidencePenalty +
     eventBoost
   );
 }
@@ -161,6 +211,14 @@ export function passesFilters(
   }
 
   if (!isSpecificCandidate(candidate)) {
+    return false;
+  }
+
+  if (
+    candidate.category === 'Restaurants' &&
+    candidate.provenance === 'search' &&
+    !hasStrongRestaurantExperienceEvidence(candidate)
+  ) {
     return false;
   }
 
@@ -299,4 +357,35 @@ function normalizePriceTier(value: string): number | null {
   }
 
   return null;
+}
+
+function hasStrongRestaurantExperienceEvidence(
+  candidate: Omit<ExperienceCandidate, 'botScore' | 'duplicateKey'>,
+): boolean {
+  if (candidate.category !== 'Restaurants') {
+    return true;
+  }
+
+  const haystack = [
+    candidate.name,
+    candidate.shortDescription,
+    candidate.whyUnique,
+    candidate.themes.join(' '),
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  const strongSignals = [
+    ...UNIQUENESS_TERMS,
+    ...RESTAURANT_EXPERIENCE_TERMS,
+    'hidden gem',
+    'outstanding',
+    'worth seeking out',
+    'dessert experience',
+    'theatrical',
+    'experience-driven',
+  ];
+  const matched = strongSignals.filter((term) => haystack.includes(term)).length;
+
+  return matched >= 2 || candidate.whyUnique.toLowerCase().startsWith('notable for ');
 }

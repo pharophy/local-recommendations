@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildDefaultSearchMetadata } from '../src/domain/search-metadata.js';
-import { scoreCandidate } from '../src/score/scoring.js';
+import { passesFilters, scoreCandidate } from '../src/score/scoring.js';
 
 describe('scoreCandidate', () => {
   it('boosts candidates that match focus and kid filters', () => {
@@ -55,9 +55,10 @@ describe('scoreCandidate', () => {
         name: 'Patio Tacos',
         region: 'Orange County',
         city: 'Anaheim',
-        shortDescription: 'Outdoor taco stand with a lively patio and family-friendly seating.',
-        whyUnique: 'A casual patio-first taco stop.',
-        themes: ['patio dining'],
+        shortDescription:
+          'Outdoor taco stand with a lively patio, hidden-gem energy, and tableside salsa service.',
+        whyUnique: 'Notable for a hidden-gem feel and theatrical presentation.',
+        themes: ['patio dining', 'local favorite'],
         audience: [],
         kidFriendly: true,
         indoorOutdoor: 'Outdoor',
@@ -83,8 +84,8 @@ describe('scoreCandidate', () => {
         name: 'Formal Dining Room',
         region: 'Orange County',
         city: 'Anaheim',
-        shortDescription: 'An indoor prix fixe restaurant with a luxury tasting menu.',
-        whyUnique: 'A formal fine-dining room.',
+        shortDescription: 'An indoor restaurant guide entry covering popular brunch spots and price points.',
+        whyUnique: 'Restaurant page lacks concrete evidence of a distinctive dining experience.',
         themes: ['fine dining'],
         audience: [],
         kidFriendly: false,
@@ -106,5 +107,75 @@ describe('scoreCandidate', () => {
     );
 
     expect(preferred).toBeGreaterThan(nonPreferred);
+  });
+
+  it('filters out restaurants without concrete experience evidence', () => {
+    const metadata = buildDefaultSearchMetadata('Restaurants');
+
+    const shouldReject = passesFilters(
+      {
+        category: 'Restaurants',
+        name: 'Downtown Grill',
+        region: 'Orange County',
+        city: 'Santa Ana',
+        shortDescription: 'Steak and seafood served in a comfortable downtown dining room.',
+        whyUnique: 'Restaurant page lacks concrete evidence of a distinctive dining experience.',
+        themes: ['steakhouse'],
+        audience: [],
+        kidFriendly: false,
+        indoorOutdoor: 'Indoor',
+        priceLevel: '$$$',
+        reservationRecommended: true,
+        website: 'https://example.com/downtown-grill',
+        sourceName: 'Example',
+        sourceUrl: 'https://example.com/source',
+        canonicalUrl: 'https://example.com/downtown-grill',
+        lastVerifiedAt: new Date().toISOString(),
+        searchFocusSnapshot: '',
+        discoveryNotes: '',
+        status: 'New',
+        createdByBotAt: new Date().toISOString(),
+        visited: false,
+        provenance: 'search',
+      },
+      metadata,
+    );
+
+    expect(shouldReject).toBe(false);
+  });
+
+  it('accepts search-derived restaurants when whyUnique has concrete evidence wording', () => {
+    const metadata = buildDefaultSearchMetadata('Restaurants');
+
+    const shouldPass = passesFilters(
+      {
+        category: 'Restaurants',
+        name: 'Hidden Dessert Lab',
+        region: 'Orange County',
+        city: 'Costa Mesa',
+        shortDescription: 'A dessert bar in Costa Mesa.',
+        whyUnique: 'Notable for a standout dessert-driven concept.',
+        themes: [],
+        audience: [],
+        kidFriendly: false,
+        indoorOutdoor: 'Indoor',
+        priceLevel: '$$',
+        reservationRecommended: true,
+        website: 'https://example.com/hidden-dessert-lab',
+        sourceName: 'Example',
+        sourceUrl: 'https://example.com/source',
+        canonicalUrl: 'https://example.com/hidden-dessert-lab',
+        lastVerifiedAt: new Date().toISOString(),
+        searchFocusSnapshot: '',
+        discoveryNotes: '',
+        status: 'New',
+        createdByBotAt: new Date().toISOString(),
+        visited: false,
+        provenance: 'search',
+      },
+      metadata,
+    );
+
+    expect(shouldPass).toBe(true);
   });
 });

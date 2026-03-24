@@ -3,16 +3,18 @@ import pLimit from 'p-limit';
 import { AirtableClient } from '../airtable/client.js';
 import { ExperienceRepository, SearchMetadataRepository } from '../airtable/repositories.js';
 import type { RuntimeConfig } from '../config/runtime.js';
-import type { DiscoveryProvider } from '../discovery/provider.js';
+import type { CandidateEnricher, DiscoveryProvider } from '../discovery/provider.js';
 import { createDiscoveryProviders } from '../discovery/providers/index.js';
-import type { CategoryDiscoveryResult, DailyRunSummary } from '../domain/experience.js';
+import type { CategoryDiscoveryResult, DailyRunSummary, ExperienceCandidate } from '../domain/experience.js';
 import type { SearchMetadata } from '../domain/search-metadata.js';
 import { applyDuplicateKeys, partitionDuplicates } from '../dedupe/duplicates.js';
 import { sendEmail } from '../email/mailer.js';
 import { renderDailySummaryEmail } from '../email/summary.js';
 import { normalizeCandidate } from '../extract/normalize.js';
 import { filterAndScoreCandidates } from '../score/scoring.js';
+import { isDateWithinDays } from '../utils/dates.js';
 import type { Logger } from '../utils/logger.js';
+import { isRejectedRestaurantCandidateUrl } from '../discovery/search/search-discovery-helpers.js';
 
 export async function runDailyWorkflow(
   config: RuntimeConfig,
@@ -25,7 +27,7 @@ export async function runDailyWorkflow(
   });
   const metadataRepository = new SearchMetadataRepository(client, config);
   const experienceRepository = new ExperienceRepository(client, config);
-  const providers = createDiscoveryProviders(config);
+  const discoveryServices = createDiscoveryProviders(config);
   const startedAt = new Date().toISOString();
   const warnings: string[] = [];
   const metadataRows = await metadataRepository.getMetadata();
@@ -34,7 +36,17 @@ export async function runDailyWorkflow(
   const enabledRows = metadataRows.filter((row) => row.enabled);
   const results = await Promise.all(
     enabledRows.map((metadata) =>
-      limit(() => processCategory(metadata, providers, experienceRepository, dryRun, logger)),
+      limit(() =>
+        processCategory(
+          metadata,
+          discoveryServices.discoveryProviders,
+          discoveryServices.enrichers,
+          experienceRepository,
+          dryRun,
+          logger,
+          config,
+        ),
+      ),
     ),
   );
 
@@ -57,9 +69,11 @@ export async function runDailyWorkflow(
 export async function processCategory(
   metadata: SearchMetadata,
   providers: DiscoveryProvider[],
+  enrichers: CandidateEnricher[],
   repository: ExperienceRepository,
   dryRun: boolean,
   logger: Logger,
+  config: RuntimeConfig,
 ): Promise<CategoryDiscoveryResult> {
   const warnings: string[] = [];
   const categoryLogger = createWarningCapturingLogger(logger, warnings);
@@ -76,8 +90,11 @@ export async function processCategory(
       )
     ).flat();
 
-    const normalized = rawItems.map((raw) => normalizeCandidate(raw, metadata));
-    const scored = applyDuplicateKeys(filterAndScoreCandidates(normalized, metadata));
+    const normalized = rawItems
+      .map((raw) => normalizeCandidate(raw, metadata))
+      .filter((candidate) => validateSearchDerivedCandidate(candidate, metadata));
+    const enriched = await enrichCandidates(normalized, enrichers, metadata, categoryLogger, config);
+    const scored = applyDuplicateKeys(filterAndScoreCandidates(enriched, metadata));
     const existing = await repository.getExisting(metadata.tableName);
     const { unique, duplicates } = partitionDuplicates(scored, existing);
     const inserted = unique.slice(0, metadata.dailyTargetNewItems);
@@ -120,6 +137,110 @@ export async function processCategory(
       discoveredCount: 0,
     };
   }
+}
+
+function validateSearchDerivedCandidate(
+  candidate: Omit<ExperienceCandidate, 'botScore' | 'duplicateKey'>,
+  metadata: SearchMetadata,
+): boolean {
+  if (candidate.provenance !== 'search') {
+    return true;
+  }
+
+  if (
+    candidate.category === 'Nature' &&
+    (
+      !candidate.city ||
+      candidate.city === 'Unknown' ||
+      candidate.city === candidate.region
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    candidate.category === 'SpecialEvents' &&
+    !isDateWithinDays(candidate.startDate, metadata.dateWindowDays ?? 30, new Date(candidate.createdByBotAt))
+  ) {
+    return false;
+  }
+
+  if (
+    candidate.category === 'Restaurants' &&
+    isRejectedRestaurantCandidateUrl(candidate.website, candidate.name)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+async function enrichCandidates(
+  candidates: Array<Omit<ExperienceCandidate, 'botScore' | 'duplicateKey'>>,
+  enrichers: CandidateEnricher[],
+  metadata: SearchMetadata,
+  logger: Logger,
+  config: RuntimeConfig,
+): Promise<Array<Omit<ExperienceCandidate, 'botScore' | 'duplicateKey'>>> {
+  if (enrichers.length === 0) {
+    return candidates;
+  }
+
+  const limit = pLimit(config.env.DISCOVERY_CONCURRENCY);
+  return Promise.all(
+    candidates.map((candidate) =>
+      limit(async () => {
+        if (candidate.provenance === 'search') {
+          return candidate;
+        }
+
+        let current = candidate;
+        for (const enricher of enrichers) {
+          const enrichment = await enricher.enrich(current, { metadata, logger });
+          if (!enrichment) {
+            continue;
+          }
+          current = applyCandidateEnrichment(current, enrichment);
+        }
+        return current;
+      }),
+    ),
+  );
+}
+
+function applyCandidateEnrichment(
+  candidate: Omit<ExperienceCandidate, 'botScore' | 'duplicateKey'>,
+  enrichment: {
+    summaryFragments: string[];
+    themeHints: string[];
+    audienceHints: string[];
+    noteFragments: string[];
+    scoreBoost: number;
+  },
+): Omit<ExperienceCandidate, 'botScore' | 'duplicateKey'> {
+  const summary = [candidate.shortDescription, ...enrichment.summaryFragments]
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, 280);
+  const themes = [...new Set([...candidate.themes, ...enrichment.themeHints])];
+  const audience = [...new Set([...candidate.audience, ...enrichment.audienceHints])];
+  const notes = enrichment.noteFragments.length > 0
+    ? `${candidate.discoveryNotes} | Enriched via web search: ${enrichment.noteFragments.join(', ')}`
+    : candidate.discoveryNotes;
+  const whyUnique =
+    enrichment.themeHints.length > 0
+      ? `${candidate.whyUnique} Public feedback mentions ${enrichment.themeHints.slice(0, 3).join(', ')}.`
+      : candidate.whyUnique;
+
+  return {
+    ...candidate,
+    shortDescription: summary,
+    themes,
+    audience,
+    discoveryNotes: notes,
+    whyUnique,
+    enrichmentScoreBoost: Math.min((candidate.enrichmentScoreBoost ?? 0) + enrichment.scoreBoost, 3),
+  };
 }
 
 function createWarningCapturingLogger(logger: Logger, warnings: string[]): Logger {

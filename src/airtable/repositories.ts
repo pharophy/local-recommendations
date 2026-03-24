@@ -8,7 +8,7 @@ import {
   DEFAULT_SPECIAL_EVENTS_WINDOW_DAYS,
 } from '../domain/search-metadata.js';
 import type { SearchMetadata } from '../domain/search-metadata.js';
-import { splitListField } from '../utils/strings.js';
+import { normalizeRegionLabel, splitListField } from '../utils/strings.js';
 import type { AirtableClient } from './client.js';
 import { EXPERIENCE_TABLE_FIELDS } from './schema.js';
 
@@ -134,6 +134,10 @@ export function parseSearchMetadataRecord(
   const defaultDateWindow =
     tableNameValue === 'SpecialEvents' ? DEFAULT_SPECIAL_EVENTS_WINDOW_DAYS : null;
 
+  const configuredRegionPriority = splitListField(readField(fields, 'Region Notes', 'RegionPriority'))
+    .map(normalizeRegionLabel)
+    .filter(Boolean);
+
   return buildDefaultSearchMetadata(tableNameValue, {
     enabled:
       readField(fields, 'Active', 'Enabled') === undefined
@@ -156,9 +160,9 @@ export function parseSearchMetadataRecord(
         ? null
         : readString(readField(fields, 'Price Bias', 'PriceBias')),
     regionPriority:
-      splitListField(readField(fields, 'Region Notes', 'RegionPriority')).length > 0
-        ? splitListField(readField(fields, 'Region Notes', 'RegionPriority'))
-        : defaultRegionPriority,
+      configuredRegionPriority.length > 0
+        ? configuredRegionPriority
+        : defaultRegionPriority.map(normalizeRegionLabel),
     dateWindowDays:
       readField(fields, 'Date Window Days', 'DateWindowDays') === undefined
         ? defaultDateWindow

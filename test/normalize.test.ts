@@ -111,4 +111,30 @@ describe('normalizeCandidate', () => {
     expect(candidate.city).toBe('Brea');
     expect(candidate.region).toBe('Orange County');
   });
+
+  it('builds restaurant whyUnique from concrete experience evidence', () => {
+    const metadata = buildDefaultSearchMetadata('Restaurants');
+
+    const candidate = normalizeCandidate(
+      {
+        category: 'Restaurants',
+        source: {
+          id: 'elixir',
+          name: 'Elixir',
+          url: 'https://example.com/elixir',
+        },
+        title: 'Elixir',
+        url: 'https://example.com/elixir',
+        summary:
+          'Costa Mesa dessert concept known for soft serve, boba, and a one-of-a-kind interactive presentation.',
+        region: 'Orange County',
+        city: 'Costa Mesa',
+      },
+      metadata,
+      new Date('2026-03-22T00:00:00.000Z'),
+    );
+
+    expect(candidate.whyUnique).toContain('a standout dessert-driven concept');
+    expect(candidate.whyUnique).toContain('an immersive concept');
+  });
 });

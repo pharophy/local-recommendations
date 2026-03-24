@@ -17,6 +17,7 @@ export interface RawDiscoveryRecord {
   venue?: string;
   tags?: string[];
   rawDateText?: string;
+  provenance?: 'curated' | 'search';
 }
 
 export interface ExperienceCandidate {
@@ -45,6 +46,8 @@ export interface ExperienceCandidate {
   status: string;
   createdByBotAt: string;
   visited: boolean;
+  provenance?: 'curated' | 'search';
+  enrichmentScoreBoost?: number;
   myRating?: number;
   myComments?: string;
   cuisine?: string;
@@ -82,4 +85,12 @@ export interface DailyRunSummary {
   dryRun: boolean;
   results: CategoryDiscoveryResult[];
   warnings: string[];
+}
+
+export interface CandidateEnrichment {
+  summaryFragments: string[];
+  themeHints: string[];
+  audienceHints: string[];
+  noteFragments: string[];
+  scoreBoost: number;
 }

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { buildDefaultSearchMetadata } from '../src/domain/search-metadata.js';
 import type { DiscoveryProvider } from '../src/discovery/provider.js';
+import { createRuntimeConfig } from '../src/config/runtime.js';
 import { processCategory } from '../src/workflows/daily-run.js';
 
 describe('processCategory', () => {
@@ -47,9 +48,27 @@ describe('processCategory', () => {
     const result = await processCategory(
       metadata,
       [provider],
+      [],
       repository as never,
       true,
       logger,
+      createRuntimeConfig({
+        AIRTABLE_PAT: 'pat',
+        AIRTABLE_BASE_ID: 'app123',
+        SMTP_HOST: 'smtp.example.com',
+        SMTP_PORT: '587',
+        SMTP_SECURE: 'false',
+        SMTP_USER: 'user',
+        SMTP_PASS: 'pass',
+        EMAIL_FROM: 'bot@example.com',
+        EMAIL_TO: 'shawn.souto@gmail.com',
+        DEFAULT_REGION_PRIORITY: 'Orange County,Los Angeles,Temecula,San Diego',
+        DEFAULT_SPECIAL_EVENTS_WINDOW_DAYS: '30',
+        LOG_LEVEL: 'info',
+        HTTP_TIMEOUT_MS: '10000',
+        HTTP_RETRY_COUNT: '2',
+        DISCOVERY_CONCURRENCY: '4',
+      }),
     );
 
     expect(result.inserted).toHaveLength(1);
